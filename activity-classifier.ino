@@ -9,8 +9,34 @@ int i = 0;
 float old_temp = 0;
 float old_hum = 0;
 
-BLEService sportService("180A"); // BLE LED Service
-BLECharCharacteristic dataCharacteristic("2A57", BLERead);
+#define BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE    "181A"
+#define BLE_UUID_TEMPERATURE                      "2A6E"
+#define BLE_UUID_HUMIDITY                         "2A6F"
+#define BLE_UUID_PRESSURE                         "2A6D"
+#define BLE_UUID_ACCELEROMETER_SERVICE            "1101"
+#define BLE_UUID_ACCELEROMETER_X                  "2101"
+#define BLE_UUID_ACCELEROMETER_Y                  "2102"
+#define BLE_UUID_ACCELEROMETER_Z                  "2103"
+#define BLE_UUID_GYROSCOPE_X                      "2201"
+#define BLE_UUID_GYROSCOPE_Y                      "2202"
+#define BLE_UUID_GYROSCOPE_Z                      "2203"
+#define BLE_UUID_MAGNETOMETER_X                   "2301"
+#define BLE_UUID_MAGNETOMETER_Y                   "2302"
+#define BLE_UUID_MAGNETOMETER_Z                   "2303"
+
+BLEService envSensing(BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE); // BLE LED Service
+BLEService envAccelerometer(BLE_UUID_ACCELEROMETER_SERVICE);
+BLEFloatCharacteristic xAccel(BLE_UUID_ACCELEROMETER_X, BLERead);
+BLEFloatCharacteristic yAccel(BLE_UUID_ACCELEROMETER_Y, BLERead);
+BLEFloatCharacteristic zAccel(BLE_UUID_ACCELEROMETER_Z, BLERead);
+BLEFloatCharacteristic xGyro(BLE_UUID_GYROSCOPE_X, BLERead);
+BLEFloatCharacteristic yGyro(BLE_UUID_GYROSCOPE_Y, BLERead);
+BLEFloatCharacteristic zGyro(BLE_UUID_GYROSCOPE_Z, BLERead);
+BLEFloatCharacteristic xMagn(BLE_UUID_MAGNETOMETER_X, BLERead);
+BLEFloatCharacteristic yMagn(BLE_UUID_MAGNETOMETER_Y, BLERead);
+BLEFloatCharacteristic zMagn(BLE_UUID_MAGNETOMETER_Z, BLERead);
+BLEFloatCharacteristic Tempe(BLE_UUID_TEMPERATURE, BLERead);
+BLEFloatCharacteristic Humid(BLE_UUID_HUMIDITY, BLERead);
 
 
 
@@ -27,16 +53,37 @@ void setup() {
   }
 
   BLE.setLocalName("Nano Suino");
-  BLE.setAdvertisedService(sportService);
+  BLE.setAdvertisedService(envSensing);
 
   // add the characteristic to the service
-  sportService.addCharacteristic(dataCharacteristic);
+  envAccelerometer.addCharacteristic(xAccel);
+  envAccelerometer.addCharacteristic(yAccel);
+  envAccelerometer.addCharacteristic(zAccel);
+  envAccelerometer.addCharacteristic(xGyro);
+  envAccelerometer.addCharacteristic(yGyro);
+  envAccelerometer.addCharacteristic(zGyro);
+  envAccelerometer.addCharacteristic(xMagn);
+  envAccelerometer.addCharacteristic(yMagn);
+  envAccelerometer.addCharacteristic(zMagn);
+  envSensing.addCharacteristic(Tempe);
+  envSensing.addCharacteristic(Humid);
 
   // add service
-  BLE.addService(sportService);
+  BLE.addService(envSensing);
+  BLE.addService(envAccelerometer);
 
   // set the initial value for the characteristic:
-  dataCharacteristic.writeValue(0);
+  xAccel.writeValue(0);
+  yAccel.writeValue(0);
+  zAccel.writeValue(0);
+  xGyro.writeValue(0);
+  yGyro.writeValue(0);
+  zGyro.writeValue(0);
+  xMagn.writeValue(0);
+  yMagn.writeValue(0);
+  zMagn.writeValue(0);  
+  Tempe.writeValue(0);
+  Humid.writeValue(0);
 
   // start advertising
   BLE.advertise();
@@ -114,8 +161,17 @@ void loop() {
 
   Serial.println(buffer);
 
-  dataCharacteristic.writeValue(i);
-  i++;
+  xAccel.writeValue(xa);
+  yAccel.writeValue(ya);
+  zAccel.writeValue(za);
+  xGyro.writeValue(xg);
+  yGyro.writeValue(yg);
+  zGyro.writeValue(zg);
+  xMagn.writeValue(xm);
+  yMagn.writeValue(ym);
+  zMagn.writeValue(zm);
+  Tempe.writeValue(temperature);
+  Humid.writeValue(humidity);  
 
   delay(100);
   
