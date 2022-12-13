@@ -26,17 +26,17 @@ float old_hum = 0;
 
 BLEService envSensing(BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE); // BLE LED Service
 BLEService envAccelerometer(BLE_UUID_ACCELEROMETER_SERVICE);
-BLEFloatCharacteristic xAccel(BLE_UUID_ACCELEROMETER_X, BLERead | BLENotify);
-BLEFloatCharacteristic yAccel(BLE_UUID_ACCELEROMETER_Y, BLERead | BLENotify);
-BLEFloatCharacteristic zAccel(BLE_UUID_ACCELEROMETER_Z, BLERead | BLENotify);
-BLEFloatCharacteristic xGyro(BLE_UUID_GYROSCOPE_X, BLERead | BLENotify);
-BLEFloatCharacteristic yGyro(BLE_UUID_GYROSCOPE_Y, BLERead | BLENotify);
-BLEFloatCharacteristic zGyro(BLE_UUID_GYROSCOPE_Z, BLERead | BLENotify);
-BLEFloatCharacteristic xMagn(BLE_UUID_MAGNETOMETER_X, BLERead | BLENotify);
-BLEFloatCharacteristic yMagn(BLE_UUID_MAGNETOMETER_Y, BLERead | BLENotify);
-BLEFloatCharacteristic zMagn(BLE_UUID_MAGNETOMETER_Z, BLERead | BLENotify);
-BLEFloatCharacteristic Tempe(BLE_UUID_TEMPERATURE, BLERead | BLENotify);
-BLEFloatCharacteristic Humid(BLE_UUID_HUMIDITY, BLERead | BLENotify);
+BLEIntCharacteristic xAccel(BLE_UUID_ACCELEROMETER_X, BLERead | BLENotify);
+BLEIntCharacteristic yAccel(BLE_UUID_ACCELEROMETER_Y, BLERead | BLENotify);
+BLEIntCharacteristic zAccel(BLE_UUID_ACCELEROMETER_Z, BLERead | BLENotify);
+BLEIntCharacteristic xGyro(BLE_UUID_GYROSCOPE_X, BLERead | BLENotify);
+BLEIntCharacteristic yGyro(BLE_UUID_GYROSCOPE_Y, BLERead | BLENotify);
+BLEIntCharacteristic zGyro(BLE_UUID_GYROSCOPE_Z, BLERead | BLENotify);
+BLEIntCharacteristic xMagn(BLE_UUID_MAGNETOMETER_X, BLERead | BLENotify);
+BLEIntCharacteristic yMagn(BLE_UUID_MAGNETOMETER_Y, BLERead | BLENotify);
+BLEIntCharacteristic zMagn(BLE_UUID_MAGNETOMETER_Z, BLERead | BLENotify);
+BLEIntCharacteristic Tempe(BLE_UUID_TEMPERATURE, BLERead | BLENotify);
+BLEIntCharacteristic Humid(BLE_UUID_HUMIDITY, BLERead | BLENotify);
 
 
 
@@ -156,22 +156,34 @@ void loop() {
 
   char buffer[500];
 
-  sprintf(buffer, "%.3f %.3f %.3f || %.3f %.3f %.3f || %.3f %.3f %.3f  || %.3f %.3f || %d %d %d",
-  xa, ya, za, xg, yg, zg, xm, ym, zm, temperature, humidity, r, g, b);
+  sprintf(buffer, "%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f",
+  xa, ya, za, xg, yg, zg, xm, ym, zm, temperature, humidity);
 
-  Serial.println(buffer);
+  Serial.println(buffer); 
 
-  xAccel.writeValue(xa);
-  yAccel.writeValue(ya);
-  zAccel.writeValue(za);
-  xGyro.writeValue(xg);
-  yGyro.writeValue(yg);
-  zGyro.writeValue(zg);
-  xMagn.writeValue(xm);
-  yMagn.writeValue(ym);
-  zMagn.writeValue(zm);
-  Tempe.writeValue(temperature);
-  Humid.writeValue(humidity);
+  int xa_int = xa * 1000; 
+  int ya_int = ya * 1000; 
+  int za_int = za * 1000; 
+  int xg_int = xg * 1000; 
+  int yg_int = yg * 1000; 
+  int zg_int = zg * 1000;
+  int xm_int = xm * 1000; 
+  int ym_int = ym * 1000; 
+  int zm_int = zm * 1000; 
+  int temp_int = temperature * 1000; 
+  int hum_int = humidity * 1000;
+
+  xAccel.writeValue(xa_int);
+  yAccel.writeValue(ya_int);
+  zAccel.writeValue(za_int);
+  xGyro.writeValue(xg_int);
+  yGyro.writeValue(yg_int);
+  zGyro.writeValue(zg_int);
+  xMagn.writeValue(xm_int);
+  yMagn.writeValue(ym_int);
+  zMagn.writeValue(zm_int);
+  Tempe.writeValue(temp_int);
+  Humid.writeValue(hum_int); 
 
   delay(100);
   
