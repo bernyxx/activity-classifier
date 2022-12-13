@@ -26,17 +26,17 @@ float old_hum = 0;
 
 BLEService envSensing(BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE); // BLE LED Service
 BLEService envAccelerometer(BLE_UUID_ACCELEROMETER_SERVICE);
-BLEFloatCharacteristic xAccel(BLE_UUID_ACCELEROMETER_X, BLERead);
-BLEFloatCharacteristic yAccel(BLE_UUID_ACCELEROMETER_Y, BLERead);
-BLEFloatCharacteristic zAccel(BLE_UUID_ACCELEROMETER_Z, BLERead);
-BLEFloatCharacteristic xGyro(BLE_UUID_GYROSCOPE_X, BLERead);
-BLEFloatCharacteristic yGyro(BLE_UUID_GYROSCOPE_Y, BLERead);
-BLEFloatCharacteristic zGyro(BLE_UUID_GYROSCOPE_Z, BLERead);
-BLEFloatCharacteristic xMagn(BLE_UUID_MAGNETOMETER_X, BLERead);
-BLEFloatCharacteristic yMagn(BLE_UUID_MAGNETOMETER_Y, BLERead);
-BLEFloatCharacteristic zMagn(BLE_UUID_MAGNETOMETER_Z, BLERead);
-BLEFloatCharacteristic Tempe(BLE_UUID_TEMPERATURE, BLERead);
-BLEFloatCharacteristic Humid(BLE_UUID_HUMIDITY, BLERead);
+BLEFloatCharacteristic xAccel(BLE_UUID_ACCELEROMETER_X, BLERead | BLENotify);
+BLEFloatCharacteristic yAccel(BLE_UUID_ACCELEROMETER_Y, BLERead | BLENotify);
+BLEFloatCharacteristic zAccel(BLE_UUID_ACCELEROMETER_Z, BLERead | BLENotify);
+BLEFloatCharacteristic xGyro(BLE_UUID_GYROSCOPE_X, BLERead | BLENotify);
+BLEFloatCharacteristic yGyro(BLE_UUID_GYROSCOPE_Y, BLERead | BLENotify);
+BLEFloatCharacteristic zGyro(BLE_UUID_GYROSCOPE_Z, BLERead | BLENotify);
+BLEFloatCharacteristic xMagn(BLE_UUID_MAGNETOMETER_X, BLERead | BLENotify);
+BLEFloatCharacteristic yMagn(BLE_UUID_MAGNETOMETER_Y, BLERead | BLENotify);
+BLEFloatCharacteristic zMagn(BLE_UUID_MAGNETOMETER_Z, BLERead | BLENotify);
+BLEFloatCharacteristic Tempe(BLE_UUID_TEMPERATURE, BLERead | BLENotify);
+BLEFloatCharacteristic Humid(BLE_UUID_HUMIDITY, BLERead | BLENotify);
 
 
 
@@ -171,7 +171,7 @@ void loop() {
   yMagn.writeValue(ym);
   zMagn.writeValue(zm);
   Tempe.writeValue(temperature);
-  Humid.writeValue(humidity);  
+  Humid.writeValue(humidity);
 
   delay(100);
   
