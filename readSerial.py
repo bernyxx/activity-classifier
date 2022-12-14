@@ -33,15 +33,19 @@ def read_value_and_write_to_file(bar):
             for i in range(len(values)):
                 if i == len(values) - 1:
                     file.write(f'{values[i]}\n')
-                file.write(f'{values[i]},')
+                else:
+                    file.write(f'{values[i]},')
             bar()
+            return False
+        else:
+            return True
 
 
 # apri il file
 file = open(f"{args.output}.csv", "w")
 
 # scrivi l'indice
-file.write("xa, ya, za, xg, yg, zg, xm, ym, zm, temp, hum\n")
+file.write("xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n")
 
 # orario d'inizio
 start_time = time.time()
@@ -52,8 +56,8 @@ with alive_bar(args.samples) as bar:
     while(i < args.samples):
         error = read_value_and_write_to_file(bar)
 
-        # se la lettura è errata rifai la lettura (non aumentare l'indice)
-        i += 1
+        if error == False:
+            i += 1
 
         # attendi: periodo meno il tempo computazione della funzione
         time.sleep(period - ((time.time() - start_time) % period))
