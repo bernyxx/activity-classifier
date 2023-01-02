@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "543978927238",
+    "project_id": "activity-classifier-34751",
+    "storage_bucket": "activity-classifier-34751.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:543978927238:android:83ddf4ef9d1e63cd2acd07",
+        "android_client_info": {
+          "package_name": "com.example.activity_classifier"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "543978927238-erd9e4jaalqoktaog6pug22frrekp0me.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBncmbIj776jN7EP31Y4OwH568feOHsDAU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "543978927238-erd9e4jaalqoktaog6pug22frrekp0me.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

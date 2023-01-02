@@ -15,6 +15,10 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter_reactive_ble: ^5.0.3
   location_permissions: ^4.0.0
+  path_provider: ^2.0.11
+  firebase_core: ^2.4.1
+  firebase_storage: ^11.0.10
+  date_format: ^2.0.7
 
 dev_dependencies:
   flutter_test:

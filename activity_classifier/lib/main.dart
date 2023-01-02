@@ -1,9 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:location_permissions/location_permissions.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
+import 'package:date_format/date_format.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,14 +45,18 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool toStop = false;
+  bool isFirebaseInitialized = false;
 
   final flutterReactiveBle = FlutterReactiveBle();
   late DiscoveredDevice nano;
   late Stream<ConnectionStateUpdate> currentConnectionStream;
   late StreamSubscription<ConnectionStateUpdate> connection;
 
+  // 2 BLE services
   final Uuid environmentalSensingService = Uuid.parse("181A");
   final Uuid accelerometerService = Uuid.parse("1101");
+
+  // list of BLE characteristics
 
   final Uuid temperatureCharacteristic = Uuid.parse("2A6E");
   final Uuid humidityCharacteristic = Uuid.parse("2A6F");
@@ -62,64 +73,19 @@ class _MyHomePageState extends State<MyHomePage> {
   final Uuid magYCharacteristic = Uuid.parse("2302");
   final Uuid magZCharacteristic = Uuid.parse("2303");
 
+  // list of measures
   List<List<int>> misurazioni = [];
 
+  // cast the list of bytes to int32
   int toSignedInt(List<int> bytes) {
     Int8List numbyte = Int8List.fromList(bytes);
 
     return numbyte.buffer.asInt32List()[0];
   }
 
-  Future<void> connectAndGetData() async {
-    currentConnectionStream = flutterReactiveBle.connectToAdvertisingDevice(id: nano.id, prescanDuration: const Duration(seconds: 1), withServices: []);
-
-    connection = currentConnectionStream.listen((event) {
-      print(event);
-    });
-
-    final qTemperatureCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: environmentalSensingService, characteristicId: temperatureCharacteristic);
-    final qHumidityCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: environmentalSensingService, characteristicId: humidityCharacteristic);
-
-    final qAccXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accXCharacteristic);
-    final qAccYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accYCharacteristic);
-    final qAccZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accZCharacteristic);
-
-    final qGyroXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroXCharacteristic);
-    final qGyroYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroYCharacteristic);
-    final qGyroZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroZCharacteristic);
-
-    final qMagXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magXCharacteristic);
-    final qMagYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magYCharacteristic);
-    final qMagZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magZCharacteristic);
-
-    for (int i = 0; i < 100; i++) {
-      if (toStop) {
-        await stop();
-        break;
-      }
-
-      int temp = toSignedInt(await flutterReactiveBle.readCharacteristic(qTemperatureCharacteristic));
-      int hum = toSignedInt(await flutterReactiveBle.readCharacteristic(qHumidityCharacteristic));
-      int accX = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccXCharacteristic));
-      int accY = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccYCharacteristic));
-      int accZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccZCharacteristic));
-      int gyroX = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroXCharacteristic));
-      int gyroY = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroYCharacteristic));
-      int gyroZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroZCharacteristic));
-      int magX = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagXCharacteristic));
-      int magY = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagYCharacteristic));
-      int magZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagZCharacteristic));
-
-      List<int> mis = [accX, accY, accZ, gyroX, gyroY, gyroZ, magX, magY, magZ, temp, hum];
-      print(mis);
-
-      setState(() {
-        misurazioni.add(mis);
-      });
-    }
-  }
-
+  // scan to search nano suino
   void scan() async {
+    toStop = false;
     PermissionStatus permission = await LocationPermissions().requestPermissions();
 
     late StreamSubscription<DiscoveredDevice> scanStream;
@@ -140,11 +106,120 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  // disconnect nano suino
   Future<void> stop() async {
     print("stop");
     toStop = true;
     await connection.cancel();
-    toStop = false;
+    await writeDataToCsv();
+  }
+
+  // connect to nano suino and get the data
+  Future<void> connectAndGetData() async {
+    // connect to the device Nano Suino
+    currentConnectionStream = flutterReactiveBle.connectToAdvertisingDevice(id: nano.id, prescanDuration: const Duration(seconds: 1), withServices: []);
+
+    // listen for connection status changes
+    connection = currentConnectionStream.listen((event) {
+      // print the changes
+      print(event);
+    });
+
+    // list of characteristics
+    final qTemperatureCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: environmentalSensingService, characteristicId: temperatureCharacteristic);
+    final qHumidityCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: environmentalSensingService, characteristicId: humidityCharacteristic);
+
+    final qAccXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accXCharacteristic);
+    final qAccYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accYCharacteristic);
+    final qAccZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accZCharacteristic);
+
+    final qGyroXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroXCharacteristic);
+    final qGyroYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroYCharacteristic);
+    final qGyroZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroZCharacteristic);
+
+    final qMagXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magXCharacteristic);
+    final qMagYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magYCharacteristic);
+    final qMagZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magZCharacteristic);
+
+    // continue to get data until toStop becomes true
+    while (toStop == false) {
+      int temp = toSignedInt(await flutterReactiveBle.readCharacteristic(qTemperatureCharacteristic));
+      int hum = toSignedInt(await flutterReactiveBle.readCharacteristic(qHumidityCharacteristic));
+      int accX = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccXCharacteristic));
+      int accY = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccYCharacteristic));
+      int accZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccZCharacteristic));
+      int gyroX = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroXCharacteristic));
+      int gyroY = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroYCharacteristic));
+      int gyroZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroZCharacteristic));
+      int magX = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagXCharacteristic));
+      int magY = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagYCharacteristic));
+      int magZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagZCharacteristic));
+
+      // list of the measures
+      List<int> mis = [accX, accY, accZ, gyroX, gyroY, gyroZ, magX, magY, magZ, temp, hum];
+      print(mis);
+
+      // add the measure to the list and notify the framework that the object changed
+      setState(() {
+        misurazioni.add(mis);
+      });
+    }
+
+    // disconnect nano suino
+    await stop();
+  }
+
+  Future<File> getFile() async {
+    Directory? dir = await getExternalStorageDirectory();
+    print(dir!.path);
+    return File('${dir.path}/data.csv');
+  }
+
+  Future<void> writeDataToCsv() async {
+    File file = await getFile();
+
+    String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
+
+    for (var mis in misurazioni) {
+      String newLine = '';
+
+      for (int i = 0; i < mis.length; i++) {
+        if (i != mis.length - 1) {
+          newLine += '${mis[i]},';
+        } else {
+          newLine += '${mis[i]}\n';
+        }
+      }
+
+      toFile += newLine;
+    }
+    file.writeAsString(toFile);
+    await uploadFile();
+  }
+
+  Future<void> uploadFile() async {
+    if (!isFirebaseInitialized) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
+      isFirebaseInitialized = true;
+    }
+
+    final storageRef = FirebaseStorage.instance.ref();
+    final DateTime dt = DateTime.now();
+
+    final String timestamp = formatDate(dt, [dd, '_', mm, '_', yyyy, '_', HH, '_', nn, '_', ss]);
+    print(timestamp);
+    final fileRef = storageRef.child('data_$timestamp.csv');
+
+    File file = await getFile();
+    try {
+      // upload file to Firebase Storage
+      await fileRef.putFile(file);
+    } on FirebaseException catch (e) {
+      print(e);
+    }
   }
 
   @override
