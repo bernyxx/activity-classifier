@@ -7,26 +7,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
 
-    - uses: actions/setup-java@v3
-      with:
-        distribution: 'zulu'
-        java-version: '12.x'
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '12.x'
 
-    - uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.3.10'
-        channel: 'stable'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.3.10'
+          channel: 'stable'
 
-    - name: Get dependencies
-      run: flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
 
-    - name: Start release build
-      run: flutter build apk
+      - name: Start release build
+        run: flutter build apk
 
-    - uses: actions/upload-artifact@v1
-      with:
-        name: release-apk
-        path: build/app/outputs/apk/release/app-release.apk
+      - uses: actions/upload-artifact@v1
+        with:
+          name: release-apk
+          path: build/app/outputs/apk/release/app-release.apk
