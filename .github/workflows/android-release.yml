@@ -7,6 +7,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      working-directory: ./activity_classifier
+
+    defaults:
+      run:
+        working-directory: ${{env.working-directory}}
+
     steps:
       - uses: actions/checkout@v3
 
@@ -29,4 +36,4 @@ jobs:
       - uses: actions/upload-artifact@v1
         with:
           name: release-apk
-          path: build/app/outputs/apk/release/app-release.apk
+          path: activity_classifier/build/app/outputs/apk/release/app-release.apk
