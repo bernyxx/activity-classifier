@@ -35,6 +35,9 @@ jobs:
 
       - name: Start release build
         run: flutter build apk
+        
+      - name: Rename apk
+        run: mv build/app/outputs/apk/release/app-release.apk build/app/outputs/apk/release/activity-classifier-0.0.${{ github.run_number }}.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -45,5 +48,5 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: activity_classifier/build/app/outputs/apk/release/app-release.apk
-          tag_name: ${{ github.run_number }}
+          files: activity_classifier/build/app/outputs/apk/release/activity-classifier-0.0.${{ github.run_number }}.apk
+          tag_name: 0.0.${{ github.run_number }}
