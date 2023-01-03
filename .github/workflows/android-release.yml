@@ -46,3 +46,4 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: activity_classifier/build/app/outputs/apk/release/app-release.apk
+          if: startsWith(github.ref, 'refs/tags/')
