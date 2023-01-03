@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: release-apk
-          path: activity_classifier/build/app/outputs/apk/release/app-release.apk
+          path: activity_classifier/build/app/outputs/apk/release/activity-classifier-0.0.${{ github.run_number }}.apk
 
       - name: Release
         uses: softprops/action-gh-release@v1
