@@ -1,17 +1,5 @@
-import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
-
-import 'package:activity_classifier/screens/takeAndSaveDataScreen.dart';
 import 'package:flutter/material.dart';
-import 'package:location_permissions/location_permissions.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
-import 'package:date_format/date_format.dart';
+import 'package:activity_classifier/screens/takeAndSaveDataScreen.dart';
 
 void main() {
   runApp(const MyApp());
