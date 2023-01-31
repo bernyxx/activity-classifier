@@ -66,8 +66,24 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     return numbyte.buffer.asInt32List()[0];
   }
 
+  void stopScan() {
+    setState(() {
+      isScanning = false;
+      connection = null;
+    });
+  }
+
+  void selectDevice(DiscoveredDevice device) async {
+    print("found device!");
+    Navigator.of(context).pop();
+    nano = device;
+    scanStream!.cancel();
+    await connectAndGetData();
+  }
+
   // scan to search nano suino
   void scan() async {
+    List<DiscoveredDevice> foundDevices = [];
     toStop = false;
     PermissionStatus permission = await LocationPermissions().requestPermissions();
 
@@ -78,41 +94,76 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
         measures.clear();
       });
 
-      scanStream = flutterReactiveBle.scanForDevices(
-        withServices: [accelerometerService, environmentalSensingService],
-      ).listen((device) async {
-        print(device.name);
-        if (device.name == "Nano Suino") {
-          print("found device!");
-
-          Navigator.of(context).pop();
-          nano = device;
-          scanStream!.cancel();
-          await connectAndGetData();
-        }
-      }, onError: (err) => print(err));
-
       showDialog(
         barrierDismissible: false,
         context: context,
         builder: (context) {
-          return AlertDialog(
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                CircularProgressIndicator(),
-                Text('Searching for Nano Suino'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  scanStream!.cancel();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
+          return StatefulBuilder(
+            builder: (context, setState) {
+              scanStream = flutterReactiveBle.scanForDevices(
+                withServices: [accelerometerService, environmentalSensingService],
+              ).listen((device) async {
+                // check if the device was already discovered
+                if (foundDevices.indexWhere((element) => element.id == device.id) == -1) {
+                  // if not discovered earlier, add it to the list of discovered devices
+                  setState(() {
+                    foundDevices.add(device);
+                    print('added ${device.name}');
+                  });
+                }
+
+                print(device.name);
+                // if (device.name == "Nano Suino") {
+                //   print("found device!");
+                //   Navigator.of(context).pop();
+                //   nano = device;
+                //   scanStream!.cancel();
+                //   await connectAndGetData();
+                // }
+              }, onError: (err) => print(err));
+              return AlertDialog(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: const [
+                        CircularProgressIndicator(),
+                        Text('Looking for boards'),
+                      ],
+                    ),
+                    SizedBox(
+                      height: 30,
+                    ),
+                    Flexible(
+                      child: SizedBox(
+                        width: double.maxFinite,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: foundDevices.length,
+                          itemBuilder: (context, index) {
+                            return ElevatedButton(
+                              onPressed: () => selectDevice(foundDevices[index]),
+                              child: Text(foundDevices[index].name),
+                            );
+                          },
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      scanStream!.cancel();
+                      stopScan();
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              );
+            },
           );
         },
       );
@@ -292,9 +343,9 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     final String timestamp = formatDate(dt, [dd, '_', mm, '_', yyyy, '_', HH, '_', nn, '_', ss]);
     print(timestamp);
 
-    // show a dialog with a radio picker to select the type of the aactivity recorded
+    // show a dialog with a radio picker to select the type of the activity recorded
 
-    await showDialog(
+    bool save = await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
@@ -322,9 +373,18 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
                   groupValue: datasetType,
                   onTap: (value) => handleDatasetTypeSelector(value!, setState),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('DELETE'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('OK'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -332,6 +392,11 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
         });
       },
     );
+
+    if (!save) {
+      print('trash the data');
+      return;
+    }
 
     // get remote file (Firebase File) reference
     final fileRef = storageRef.child('${datasetType}_$timestamp.csv');
