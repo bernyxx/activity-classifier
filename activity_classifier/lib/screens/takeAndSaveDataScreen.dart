@@ -74,8 +74,6 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     return numbyte.buffer.asInt32List()[0];
   }
 
-  void initCharacteristics() {}
-
   void selectDevice(DiscoveredDevice device) async {
     print("selected device!");
     Navigator.of(context).pop();
@@ -288,7 +286,10 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     File file = await getFile();
 
     // csv index line
-    String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
+    // String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
+    String toFile = 'xa,ya,za\n';
+
+    measures = measures.sublist(0, 3);
 
     int minLength = measures.map((e) => e.length).toList().reduce(min);
 
