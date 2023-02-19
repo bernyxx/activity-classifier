@@ -122,13 +122,15 @@ void setup()
 void loop()
 {
 
+  BLEDevice central = BLE.central();
+
   unsigned long now = millis();
 
-  if(now - previous_time >= 200){
+  if(now - previous_time >= 75){
 
     previous_time = now;
     
-    BLEDevice central = BLE.central();
+    
 
     // if (central)
     // {
