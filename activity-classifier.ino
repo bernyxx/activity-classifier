@@ -6,6 +6,7 @@
 float old_temp = 0;
 float old_hum = 0;
 
+// list of Characteristics UUIDs
 #define BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE "181A"
 #define BLE_UUID_TEMPERATURE "2A6E"
 #define BLE_UUID_HUMIDITY "2A6F"
@@ -21,9 +22,12 @@ float old_hum = 0;
 #define BLE_UUID_MAGNETOMETER_Y "2302"
 #define BLE_UUID_MAGNETOMETER_Z "2303"
 
+// definition of the 2 services provided over BLE
 BLEService sensingService(BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE); // BLE LED Service
 BLEService imuService(BLE_UUID_ACCELEROMETER_SERVICE);
 
+// create the 11 characteristics (9 for the IMU + temperature and humidity readings)
+// initialize each characteristic with the corrensponding UUID and make it only read and subscribable
 BLEIntCharacteristic xAccel(BLE_UUID_ACCELEROMETER_X, BLERead | BLENotify);
 BLEIntCharacteristic yAccel(BLE_UUID_ACCELEROMETER_Y, BLERead | BLENotify);
 BLEIntCharacteristic zAccel(BLE_UUID_ACCELEROMETER_Z, BLERead | BLENotify);
@@ -53,6 +57,7 @@ void setup()
 
   Serial.begin(115200);
 
+  // start BLE service
   if (!BLE.begin())
   {
     Serial.println("starting Bluetooth® Low Energy failed!");
@@ -66,7 +71,7 @@ void setup()
   BLE.setAdvertisedService(imuService);
   BLE.setAdvertisedService(sensingService);
 
-  // add the characteristic to the accelerometer service
+  // add the characteristics to the accelerometer service
   imuService.addCharacteristic(xAccel);
   imuService.addCharacteristic(yAccel);
   imuService.addCharacteristic(zAccel);
@@ -77,15 +82,15 @@ void setup()
   imuService.addCharacteristic(yMagn);
   imuService.addCharacteristic(zMagn);
 
-  // add the characteristic to the sensing service
+  // add the characteristics to the sensing service
   sensingService.addCharacteristic(Tempe);
   sensingService.addCharacteristic(Humid);
 
-  // add service
+  // add the services to the BLE device
   BLE.addService(imuService);
   BLE.addService(sensingService);
 
-  // set the initial value for the characteristic:
+  // set the initial value for the characteristics
   xAccel.writeValue(0);
   yAccel.writeValue(0);
   zAccel.writeValue(0);
@@ -98,7 +103,7 @@ void setup()
   Tempe.writeValue(0);
   Humid.writeValue(0);
 
-  // start advertising
+  // start advertising the board
   BLE.advertise();
 
   if (!IMU.begin())
@@ -113,10 +118,10 @@ void setup()
     Serial.println("Failed to initialize humidity temperature sensor!");
   }
 
-  if (!APDS.begin())
-  {
-    Serial.println("Error initializing APDS9960 sensor.");
-  }
+  // if (!APDS.begin())
+  // {
+  //   Serial.println("Error initializing APDS9960 sensor.");
+  // }
 }
 
 void loop()
@@ -126,19 +131,16 @@ void loop()
 
   unsigned long now = millis();
 
-  if(now - previous_time >= 75){
+  if (now - previous_time >= 75)
+  {
 
     previous_time = now;
-    
-    
 
     // if (central)
     // {
     //   Serial.print("Connected to central: ");
     //   Serial.println(central.address());
     // }
-
-    
 
     // read accelerometer data
     if (IMU.accelerationAvailable())
@@ -179,7 +181,7 @@ void loop()
     //   APDS.readColor(r, g, b);
     // }
 
-    // print data
+    // make every reading an integer to send over BLE
 
     int xa_int = xa * 1000;
     int ya_int = ya * 1000;
@@ -193,6 +195,8 @@ void loop()
     int temp_int = old_temp * 1000;
     int hum_int = old_hum * 1000;
 
+    // print data on serial
+
     char buffer[500];
 
     sprintf(buffer, "%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f",
@@ -200,6 +204,7 @@ void loop()
 
     Serial.println(buffer);
 
+    // if something is connected to the board (via BLE) send the reading over BLE
     if (central.connected())
     {
       xAccel.writeValue(xa_int);
@@ -215,6 +220,4 @@ void loop()
       Humid.writeValue(hum_int);
     }
   }
-
-  
 }
