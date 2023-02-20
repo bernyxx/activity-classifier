@@ -37,6 +37,17 @@ BLEIntCharacteristic zMagn(BLE_UUID_MAGNETOMETER_Z, BLERead | BLENotify);
 BLEIntCharacteristic Tempe(BLE_UUID_TEMPERATURE, BLERead | BLENotify);
 BLEIntCharacteristic Humid(BLE_UUID_HUMIDITY, BLERead | BLENotify);
 
+unsigned long previous_time = 0;
+
+// accelerometer data
+float xa, ya, za;
+
+// gyroscope data
+float xg, yg, zg;
+
+// magnetometer data
+float xm, ym, zm;
+
 void setup()
 {
 
@@ -113,95 +124,97 @@ void loop()
 
   BLEDevice central = BLE.central();
 
-  if (central)
-  {
-    Serial.print("Connected to central: ");
-    Serial.println(central.address());
+  unsigned long now = millis();
+
+  if(now - previous_time >= 75){
+
+    previous_time = now;
+    
+    
+
+    // if (central)
+    // {
+    //   Serial.print("Connected to central: ");
+    //   Serial.println(central.address());
+    // }
+
+    
+
+    // read accelerometer data
+    if (IMU.accelerationAvailable())
+    {
+      IMU.readAcceleration(xa, ya, za);
+    }
+
+    // read gyroscope data
+    if (IMU.gyroscopeAvailable())
+    {
+      IMU.readGyroscope(xg, yg, zg);
+    }
+
+    // read magnetometer data
+    if (IMU.magneticFieldAvailable())
+    {
+      IMU.readMagneticField(xm, ym, zm);
+    }
+
+    // read temeprature and humidity
+
+    float temperature = HTS.readTemperature();
+    float humidity = HTS.readHumidity();
+
+    // check if the range values in temperature are bigger than 0,5 ºC
+    // and if the range values in humidity are bigger than 1%
+    if (abs(old_temp - temperature) >= 0.5 || abs(old_hum - humidity) >= 1)
+    {
+      old_temp = temperature;
+      old_hum = humidity;
+    }
+
+    // read color
+    // int r, g, b;
+
+    // if (APDS.colorAvailable())
+    // {
+    //   APDS.readColor(r, g, b);
+    // }
+
+    // print data
+
+    int xa_int = xa * 1000;
+    int ya_int = ya * 1000;
+    int za_int = za * 1000;
+    int xg_int = xg * 1000;
+    int yg_int = yg * 1000;
+    int zg_int = zg * 1000;
+    int xm_int = xm * 1000;
+    int ym_int = ym * 1000;
+    int zm_int = zm * 1000;
+    int temp_int = old_temp * 1000;
+    int hum_int = old_hum * 1000;
+
+    char buffer[500];
+
+    sprintf(buffer, "%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f",
+            xa, ya, za, xg, yg, zg, xm, ym, zm, old_temp, old_hum);
+
+    Serial.println(buffer);
+
+    if (central.connected())
+    {
+      xAccel.writeValue(xa_int);
+      yAccel.writeValue(ya_int);
+      zAccel.writeValue(za_int);
+      xGyro.writeValue(xg_int);
+      yGyro.writeValue(yg_int);
+      zGyro.writeValue(zg_int);
+      xMagn.writeValue(xm_int);
+      yMagn.writeValue(ym_int);
+      zMagn.writeValue(zm_int);
+      Tempe.writeValue(temp_int);
+      Humid.writeValue(hum_int);
+    }
   }
 
-  // accelerometer data
-  float xa, ya, za;
-
-  // gyroscope data
-  float xg, yg, zg;
-
-  // magnetometer data
-  float xm, ym, zm;
-
-  // read accelerometer data
-  if (IMU.accelerationAvailable())
-  {
-    IMU.readAcceleration(xa, ya, za);
-  }
-
-  // read gyroscope data
-  if (IMU.gyroscopeAvailable())
-  {
-    IMU.readGyroscope(xg, yg, zg);
-  }
-
-  // read magnetometer data
-  if (IMU.magneticFieldAvailable())
-  {
-    IMU.readMagneticField(xm, ym, zm);
-  }
-
-  // read temeprature and humidity
-
-  float temperature = HTS.readTemperature();
-  float humidity = HTS.readHumidity();
-
-  // check if the range values in temperature are bigger than 0,5 ºC
-  // and if the range values in humidity are bigger than 1%
-  if (abs(old_temp - temperature) >= 0.5 || abs(old_hum - humidity) >= 1)
-  {
-    old_temp = temperature;
-    old_hum = humidity;
-  }
-
-  // read color
-  int r, g, b;
-
-  if (APDS.colorAvailable())
-  {
-    APDS.readColor(r, g, b);
-  }
-
-  // print data
-
-  char buffer[500];
-
-  sprintf(buffer, "%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f",
-          xa, ya, za, xg, yg, zg, xm, ym, zm, temperature, humidity);
-
-  Serial.println(buffer);
-
-  int xa_int = xa * 1000;
-  int ya_int = ya * 1000;
-  int za_int = za * 1000;
-  int xg_int = xg * 1000;
-  int yg_int = yg * 1000;
-  int zg_int = zg * 1000;
-  int xm_int = xm * 1000;
-  int ym_int = ym * 1000;
-  int zm_int = zm * 1000;
-  int temp_int = temperature * 1000;
-  int hum_int = humidity * 1000;
-
-  if (central.connected())
-  {
-    xAccel.writeValue(xa_int);
-    yAccel.writeValue(ya_int);
-    zAccel.writeValue(za_int);
-    xGyro.writeValue(xg_int);
-    yGyro.writeValue(yg_int);
-    zGyro.writeValue(zg_int);
-    xMagn.writeValue(xm_int);
-    yMagn.writeValue(ym_int);
-    zMagn.writeValue(zm_int);
-    Tempe.writeValue(temp_int);
-    Humid.writeValue(hum_int);
-  }
-
-  delay(100);
+  
 }

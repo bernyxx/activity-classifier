@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:activity_classifier/firebase_options.dart';
+import 'package:activity_classifier/widgets/dataWidget.dart';
 import 'package:activity_classifier/widgets/radioCustom.dart';
 import 'package:date_format/date_format.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -28,18 +30,15 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
 
   late StreamSubscription<DiscoveredDevice>? scanStream;
 
-  late DiscoveredDevice nano;
-
   StreamSubscription<ConnectionStateUpdate>? connection;
+
+  DeviceConnectionState connectionState = DeviceConnectionState.disconnected;
 
   // 2 BLE services
   final Uuid environmentalSensingService = Uuid.parse("181A");
   final Uuid accelerometerService = Uuid.parse("1101");
 
   // list of BLE characteristics
-
-  final Uuid temperatureCharacteristic = Uuid.parse("2A6E");
-  final Uuid humidityCharacteristic = Uuid.parse("2A6F");
 
   final Uuid accXCharacteristic = Uuid.parse("2101");
   final Uuid accYCharacteristic = Uuid.parse("2102");
@@ -53,11 +52,20 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
   final Uuid magYCharacteristic = Uuid.parse("2302");
   final Uuid magZCharacteristic = Uuid.parse("2303");
 
+  final Uuid temperatureCharacteristic = Uuid.parse("2A6E");
+  final Uuid humidityCharacteristic = Uuid.parse("2A6F");
+
+  List<StreamSubscription<dynamic>> streams = [];
+
   // list of measures
   List<List<int>> measures = [];
 
   // dataset type
   String datasetType = 'still';
+
+  List<String> labels = ['accX', 'accY', 'accZ', 'gyroX', 'gyroY', 'gyroZ', 'magX', 'magY', 'magZ', 'temp', 'hum'];
+
+  List<QualifiedCharacteristic> characteristics = [];
 
   // cast the list of bytes to an int32
   int toSignedInt(List<int> bytes) {
@@ -66,53 +74,89 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     return numbyte.buffer.asInt32List()[0];
   }
 
+  void selectDevice(DiscoveredDevice device) async {
+    print("selected device!");
+    Navigator.of(context).pop();
+    scanStream!.cancel();
+    await connectAndGetData(device);
+  }
+
   // scan to search nano suino
   void scan() async {
-    toStop = false;
+    List<DiscoveredDevice> foundDevices = [];
+
+    // toStop = false;
     PermissionStatus permission = await LocationPermissions().requestPermissions();
 
     if (permission == PermissionStatus.granted) {
       setState(() {
         isScanning = true;
-        // clear the measures list
-        measures.clear();
       });
-
-      scanStream = flutterReactiveBle.scanForDevices(
-        withServices: [accelerometerService, environmentalSensingService],
-      ).listen((device) async {
-        print(device.name);
-        if (device.name == "Nano Suino") {
-          print("found device!");
-
-          Navigator.of(context).pop();
-          nano = device;
-          scanStream!.cancel();
-          await connectAndGetData();
-        }
-      }, onError: (err) => print(err));
 
       showDialog(
         barrierDismissible: false,
         context: context,
         builder: (context) {
-          return AlertDialog(
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                CircularProgressIndicator(),
-                Text('Searching for Nano Suino'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  scanStream!.cancel();
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
+          return StatefulBuilder(
+            builder: (context, setState) {
+              scanStream = flutterReactiveBle.scanForDevices(
+                withServices: [accelerometerService, environmentalSensingService],
+              ).listen((device) async {
+                // check if the device was already discovered
+                if (foundDevices.indexWhere((element) => element.id == device.id) == -1) {
+                  // if not discovered earlier, add it to the list of discovered devices
+                  setState(() {
+                    foundDevices.add(device);
+                    print('added ${device.name}');
+                  });
+                }
+              }, onError: (err) => print(err));
+              return AlertDialog(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: const [
+                        CircularProgressIndicator(),
+                        Text('Looking for boards...'),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 30,
+                    ),
+                    Flexible(
+                      child: SizedBox(
+                        width: double.maxFinite,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: foundDevices.length,
+                          itemBuilder: (context, index) {
+                            return ElevatedButton(
+                              onPressed: () => selectDevice(foundDevices[index]),
+                              child: Text(foundDevices[index].name),
+                            );
+                          },
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      scanStream!.cancel();
+                      setState(() {
+                        isScanning = false;
+                        connection = null;
+                      });
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              );
+            },
           );
         },
       );
@@ -136,10 +180,16 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
   Future<void> stop() async {
     print("disconnecting nano");
 
-    // disconnect the nano
+    // stop receiving data for all characteristics
+    for (StreamSubscription stream in streams) {
+      stream.cancel();
+    }
+
+    // disconnect the board
     await connection!.cancel();
 
     setState(() {
+      // clear connection
       connection = null;
     });
 
@@ -151,11 +201,11 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
   }
 
   // connect to nano suino and get the data
-  Future<void> connectAndGetData() async {
+  Future<void> connectAndGetData(DiscoveredDevice device) async {
     // connect to the device Nano Suino
     Stream<ConnectionStateUpdate> currentConnectionStream = flutterReactiveBle.connectToDevice(
-      id: nano.id,
-      connectionTimeout: const Duration(seconds: 10),
+      id: device.id,
+      connectionTimeout: const Duration(seconds: 5),
     );
 
     // listen for connection status changes
@@ -163,6 +213,9 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
       (event) {
         // print the changes
         print(event);
+        setState(() {
+          connectionState = event.connectionState;
+        });
       },
     );
 
@@ -174,56 +227,49 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     });
 
     // list of characteristics
-    final qTemperatureCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: environmentalSensingService, characteristicId: temperatureCharacteristic);
-    final qHumidityCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: environmentalSensingService, characteristicId: humidityCharacteristic);
 
-    final qAccXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accXCharacteristic);
-    final qAccYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accYCharacteristic);
-    final qAccZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: accZCharacteristic);
+    final qAccXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: accXCharacteristic);
+    final qAccYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: accYCharacteristic);
+    final qAccZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: accZCharacteristic);
 
-    final qGyroXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroXCharacteristic);
-    final qGyroYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroYCharacteristic);
-    final qGyroZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: gyroZCharacteristic);
+    final qGyroXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: gyroXCharacteristic);
+    final qGyroYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: gyroYCharacteristic);
+    final qGyroZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: gyroZCharacteristic);
 
-    final qMagXCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magXCharacteristic);
-    final qMagYCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magYCharacteristic);
-    final qMagZCharacteristic = QualifiedCharacteristic(deviceId: nano.id, serviceId: accelerometerService, characteristicId: magZCharacteristic);
+    final qMagXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: magXCharacteristic);
+    final qMagYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: magYCharacteristic);
+    final qMagZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: magZCharacteristic);
 
-    // continue to get data until toStop becomes true
+    final qTemperatureCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: environmentalSensingService, characteristicId: temperatureCharacteristic);
+    final qHumidityCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: environmentalSensingService, characteristicId: humidityCharacteristic);
 
-    while (true) {
-      int temp = toSignedInt(await flutterReactiveBle.readCharacteristic(qTemperatureCharacteristic));
-      int hum = toSignedInt(await flutterReactiveBle.readCharacteristic(qHumidityCharacteristic));
+    List<QualifiedCharacteristic> characteristics = [
+      qAccXCharacteristic,
+      qAccYCharacteristic,
+      qAccZCharacteristic,
+      qGyroXCharacteristic,
+      qGyroYCharacteristic,
+      qGyroZCharacteristic,
+      qMagXCharacteristic,
+      qMagYCharacteristic,
+      qMagZCharacteristic,
+      qTemperatureCharacteristic,
+      qHumidityCharacteristic
+    ];
 
-      int accX = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccXCharacteristic));
-      int accY = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccYCharacteristic));
-      int accZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qAccZCharacteristic));
+    // initialize measures list
+    for (var _ in characteristics) {
+      measures.add([]);
+    }
 
-      int gyroX = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroXCharacteristic));
-      int gyroY = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroYCharacteristic));
-      int gyroZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qGyroZCharacteristic));
-
-      int magX = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagXCharacteristic));
-      int magY = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagYCharacteristic));
-      int magZ = toSignedInt(await flutterReactiveBle.readCharacteristic(qMagZCharacteristic));
-
-      // list of the values for a single measure
-      List<int> mis = [accX, accY, accZ, gyroX, gyroY, gyroZ, magX, magY, magZ, temp, hum];
-      print(mis);
-
-      // add the measure to the list and notify the framework that the object changed (for ui update)
-
-      setState(() {
-        measures.add(mis);
-      });
-
-      if (toStop) {
-        print('breaking the loop');
-        // stop button was pressed
-        await stop();
-        // exit the loop
-        break;
-      }
+    // open connections to read on characteristics
+    for (int i = 0; i < characteristics.length; i++) {
+      streams.add(flutterReactiveBle.subscribeToCharacteristic(characteristics[i]).listen((data) {
+        final int value = toSignedInt(data);
+        setState(() {
+          measures[i].add(value);
+        });
+      }));
     }
   }
 
@@ -240,19 +286,24 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     File file = await getFile();
 
     // csv index line
-    String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
+    // String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
+    String toFile = 'xa,ya,za\n';
+
+    measures = measures.sublist(0, 3);
+
+    int minLength = measures.map((e) => e.length).toList().reduce(min);
 
     // iterate the measures
-    for (var mis in measures) {
-      String newLine = '';
 
-      for (int i = 0; i < mis.length; i++) {
-        if (i != mis.length - 1) {
+    for (int i = 0; i < minLength; i++) {
+      String newLine = '';
+      for (int featureIndex = 0; featureIndex < measures.length; featureIndex++) {
+        if (featureIndex != measures.length - 1) {
           // if not last value of the measure put a comma
-          newLine += '${mis[i]},';
+          newLine += '${measures[featureIndex][i]},';
         } else {
           // if last value of the measure put an end line
-          newLine += '${mis[i]}\n';
+          newLine += '${measures[featureIndex][i]}\n';
         }
       }
 
@@ -262,6 +313,10 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
 
     // write the whole string to the file
     file.writeAsString(toFile);
+
+    setState(() {
+      measures.clear();
+    });
   }
 
   void handleDatasetTypeSelector(String type, var setState) {
@@ -292,9 +347,9 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     final String timestamp = formatDate(dt, [dd, '_', mm, '_', yyyy, '_', HH, '_', nn, '_', ss]);
     print(timestamp);
 
-    // show a dialog with a radio picker to select the type of the aactivity recorded
+    // show a dialog with a radio picker to select the type of the activity recorded
 
-    await showDialog(
+    bool save = await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
@@ -322,9 +377,18 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
                   groupValue: datasetType,
                   onTap: (value) => handleDatasetTypeSelector(value!, setState),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('DELETE'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('OK'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -332,6 +396,11 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
         });
       },
     );
+
+    if (!save) {
+      print('trash the data');
+      return;
+    }
 
     // get remote file (Firebase File) reference
     final fileRef = storageRef.child('${datasetType}_$timestamp.csv');
@@ -344,6 +413,23 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
       await fileRef.putFile(file);
     } on FirebaseException catch (e) {
       print(e);
+    }
+  }
+
+  String getDeviceConnectionStateString() {
+    if (connection == null) return 'Disconnected';
+
+    switch (connectionState) {
+      case DeviceConnectionState.disconnected:
+        return 'Disconnected';
+      case DeviceConnectionState.connected:
+        return 'Connected';
+      case DeviceConnectionState.connecting:
+        return 'Connecting';
+      case DeviceConnectionState.disconnecting:
+        return 'Disconnecting';
+      default:
+        return '';
     }
   }
 
@@ -377,33 +463,35 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
                   child: const Text('Scan'),
                 ),
                 ElevatedButton(
-                  onPressed: (connection == null) ? null : handleStop,
+                  onPressed: (connection == null) ? null : stop,
                   child: const Text('Stop'),
                 ),
               ],
             ),
             const SizedBox(
+              height: 10,
+            ),
+            Text('Board status: ${getDeviceConnectionStateString()}'),
+            const SizedBox(
               height: 20,
             ),
             const Text('The incoming data will be displayed below'),
             Expanded(
-              child: ListView.builder(
+              child: ListView(
                 reverse: false,
-                itemCount: measures.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                    child: Card(
-                      child: ListTile(
-                        title: Text('${measures[index]}'),
-                        tileColor: Colors.grey,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                children: [
+                  DataWidget('accX', measures.isNotEmpty ? measures[0] : []),
+                  DataWidget('accY', measures.isNotEmpty ? measures[1] : []),
+                  DataWidget('accZ', measures.isNotEmpty ? measures[2] : []),
+                  DataWidget('gyroX', measures.isNotEmpty ? measures[3] : []),
+                  DataWidget('gyroY', measures.isNotEmpty ? measures[4] : []),
+                  DataWidget('gyroZ', measures.isNotEmpty ? measures[5] : []),
+                  DataWidget('magX', measures.isNotEmpty ? measures[6] : []),
+                  DataWidget('magY', measures.isNotEmpty ? measures[7] : []),
+                  DataWidget('magZ', measures.isNotEmpty ? measures[8] : []),
+                  DataWidget('temp', measures.isNotEmpty ? measures[9] : []),
+                  DataWidget('hum', measures.isNotEmpty ? measures[10] : []),
+                ],
               ),
             ),
           ],
