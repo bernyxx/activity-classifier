@@ -1,8 +1,9 @@
-import 'dart:async';
 import 'dart:io';
+import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:activity_classifier/firebase_options.dart';
+import 'package:activity_classifier/widgets/dataLengthWidget.dart';
 import 'package:activity_classifier/widgets/dataWidget.dart';
 import 'package:activity_classifier/widgets/radioCustom.dart';
 import 'package:date_format/date_format.dart';
@@ -24,7 +25,6 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
   bool isFirebaseInitialized = false;
 
   bool isScanning = false;
-  bool toStop = false;
 
   final flutterReactiveBle = FlutterReactiveBle();
 
@@ -55,6 +55,8 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
   final Uuid temperatureCharacteristic = Uuid.parse("2A6E");
   final Uuid humidityCharacteristic = Uuid.parse("2A6F");
 
+  bool showData = false;
+
   List<StreamSubscription<dynamic>> streams = [];
 
   // list of measures
@@ -74,6 +76,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     return numbyte.buffer.asInt32List()[0];
   }
 
+  // function called when a discovered device is selected from the list during scanning
   void selectDevice(DiscoveredDevice device) async {
     print("selected device!");
     Navigator.of(context).pop();
@@ -81,11 +84,12 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     await connectAndGetData(device);
   }
 
-  // scan to search nano suino
-  void scan() async {
+  // scan BLE devices
+  void scan(BuildContext ctx) async {
     List<DiscoveredDevice> foundDevices = [];
+    var navigator = Navigator.of(ctx);
+    var messenger = ScaffoldMessenger.of(ctx);
 
-    // toStop = false;
     PermissionStatus permission = await LocationPermissions().requestPermissions();
 
     if (permission == PermissionStatus.granted) {
@@ -93,9 +97,11 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
         isScanning = true;
       });
 
+      // show a dialog with a list of the BLE devices offering "1101" and "181A" services
+      // ignore: use_build_context_synchronously
       showDialog(
         barrierDismissible: false,
-        context: context,
+        context: ctx,
         builder: (context) {
           return StatefulBuilder(
             builder: (context, setState) {
@@ -104,7 +110,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
               ).listen((device) async {
                 // check if the device was already discovered
                 if (foundDevices.indexWhere((element) => element.id == device.id) == -1) {
-                  // if not discovered earlier, add it to the list of discovered devices
+                  // if not already discovered, add it to the list of discovered devices
                   setState(() {
                     foundDevices.add(device);
                     print('added ${device.name}');
@@ -119,7 +125,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: const [
                         CircularProgressIndicator(),
-                        Text('Looking for boards...'),
+                        Text('Looking for boards nearby...'),
                       ],
                     ),
                     const SizedBox(
@@ -145,7 +151,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
                 actions: [
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      navigator.pop();
                       scanStream!.cancel();
                       setState(() {
                         isScanning = false;
@@ -161,8 +167,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
         },
       );
     } else {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Scanning for BLE Peripherals require location permissions!'),
         ),
@@ -170,19 +175,13 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     }
   }
 
-  void handleStop() {
-    setState(() {
-      toStop = true;
-    });
-  }
-
-  // disconnect nano suino
+  // disconnect the board
   Future<void> stop() async {
-    print("disconnecting nano");
+    print("disconnecting board");
 
     // stop receiving data for all characteristics
     for (StreamSubscription stream in streams) {
-      stream.cancel();
+      await stream.cancel();
     }
 
     // disconnect the board
@@ -200,7 +199,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     await uploadFile();
   }
 
-  // connect to nano suino and get the data
+  // connect to the selected board and get the data
   Future<void> connectAndGetData(DiscoveredDevice device) async {
     // connect to the device Nano Suino
     Stream<ConnectionStateUpdate> currentConnectionStream = flutterReactiveBle.connectToDevice(
@@ -286,15 +285,14 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     File file = await getFile();
 
     // csv index line
-    // String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
-    String toFile = 'xa,ya,za\n';
+    String toFile = 'xa,ya,za,xg,yg,zg,xm,ym,zm,temp,hum\n';
+    // String toFile = 'xa,ya,za\n';
 
-    measures = measures.sublist(0, 3);
+    // measures = measures.sublist(0, 3);
 
     int minLength = measures.map((e) => e.length).toList().reduce(min);
 
     // iterate the measures
-
     for (int i = 0; i < minLength; i++) {
       String newLine = '';
       for (int featureIndex = 0; featureIndex < measures.length; featureIndex++) {
@@ -320,7 +318,6 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
   }
 
   void handleDatasetTypeSelector(String type, var setState) {
-    print(type);
     setState(() {
       datasetType = type;
     });
@@ -345,10 +342,11 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
 
     // format the date to get the date using the format day_month_year_hours_mins_secs
     final String timestamp = formatDate(dt, [dd, '_', mm, '_', yyyy, '_', HH, '_', nn, '_', ss]);
-    print(timestamp);
+
+    datasetType = 'still';
 
     // show a dialog with a radio picker to select the type of the activity recorded
-
+    // ignore: use_build_context_synchronously
     bool save = await showDialog(
       context: context,
       barrierDismissible: false,
@@ -411,6 +409,13 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     try {
       // upload local csv file to Firebase Storage
       await fileRef.putFile(file);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dataset upload successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } on FirebaseException catch (e) {
       print(e);
     }
@@ -431,6 +436,12 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
       default:
         return '';
     }
+  }
+
+  void switchController(bool value) {
+    setState(() {
+      showData = value;
+    });
   }
 
   @override
@@ -459,7 +470,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton(
-                  onPressed: (connection == null && isScanning == false) ? scan : null,
+                  onPressed: (connection == null && isScanning == false) ? () => scan(context) : null,
                   child: const Text('Scan'),
                 ),
                 ElevatedButton(
@@ -473,25 +484,47 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
             ),
             Text('Board status: ${getDeviceConnectionStateString()}'),
             const SizedBox(
-              height: 20,
+              height: 10,
             ),
-            const Text('The incoming data will be displayed below'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                const Text('Show Values'),
+                Switch(
+                  value: showData,
+                  onChanged: (value) => switchController(value),
+                ),
+              ],
+            ),
             Expanded(
               child: ListView(
-                reverse: false,
-                children: [
-                  DataWidget('accX', measures.isNotEmpty ? measures[0] : []),
-                  DataWidget('accY', measures.isNotEmpty ? measures[1] : []),
-                  DataWidget('accZ', measures.isNotEmpty ? measures[2] : []),
-                  DataWidget('gyroX', measures.isNotEmpty ? measures[3] : []),
-                  DataWidget('gyroY', measures.isNotEmpty ? measures[4] : []),
-                  DataWidget('gyroZ', measures.isNotEmpty ? measures[5] : []),
-                  DataWidget('magX', measures.isNotEmpty ? measures[6] : []),
-                  DataWidget('magY', measures.isNotEmpty ? measures[7] : []),
-                  DataWidget('magZ', measures.isNotEmpty ? measures[8] : []),
-                  DataWidget('temp', measures.isNotEmpty ? measures[9] : []),
-                  DataWidget('hum', measures.isNotEmpty ? measures[10] : []),
-                ],
+                children: showData
+                    ? [
+                        DataWidget('accX', measures.isNotEmpty ? measures[0] : []),
+                        DataWidget('accY', measures.isNotEmpty ? measures[1] : []),
+                        DataWidget('accZ', measures.isNotEmpty ? measures[2] : []),
+                        DataWidget('gyroX', measures.isNotEmpty ? measures[3] : []),
+                        DataWidget('gyroY', measures.isNotEmpty ? measures[4] : []),
+                        DataWidget('gyroZ', measures.isNotEmpty ? measures[5] : []),
+                        DataWidget('magX', measures.isNotEmpty ? measures[6] : []),
+                        DataWidget('magY', measures.isNotEmpty ? measures[7] : []),
+                        DataWidget('magZ', measures.isNotEmpty ? measures[8] : []),
+                        DataWidget('temp', measures.isNotEmpty ? measures[9] : []),
+                        DataWidget('hum', measures.isNotEmpty ? measures[10] : []),
+                      ]
+                    : [
+                        DataLengthWidget('accX', measures.isNotEmpty ? measures[0] : []),
+                        DataLengthWidget('accY', measures.isNotEmpty ? measures[1] : []),
+                        DataLengthWidget('accZ', measures.isNotEmpty ? measures[2] : []),
+                        DataLengthWidget('gyroX', measures.isNotEmpty ? measures[3] : []),
+                        DataLengthWidget('gyroY', measures.isNotEmpty ? measures[4] : []),
+                        DataLengthWidget('gyroZ', measures.isNotEmpty ? measures[5] : []),
+                        DataLengthWidget('magX', measures.isNotEmpty ? measures[6] : []),
+                        DataLengthWidget('magY', measures.isNotEmpty ? measures[7] : []),
+                        DataLengthWidget('magZ', measures.isNotEmpty ? measures[8] : []),
+                        DataLengthWidget('temp', measures.isNotEmpty ? measures[9] : []),
+                        DataLengthWidget('hum', measures.isNotEmpty ? measures[10] : []),
+                      ],
               ),
             ),
           ],

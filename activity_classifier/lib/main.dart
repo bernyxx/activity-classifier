@@ -43,7 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget getBody(int index) {
     if (index == 0) {
-      return TakeAndSaveDataScreen();
+      return const TakeAndSaveDataScreen();
     } else {
       return Center(
         child: Text('Index $_bottomNavigationBarIndex'),
