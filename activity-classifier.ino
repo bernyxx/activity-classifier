@@ -3,6 +3,15 @@
 #include <Arduino_APDS9960.h>
 #include <ArduinoBLE.h>
 
+
+// #include "tensorflow/lite/micro/all_ops_resolver.h"
+// #include "tensorflow/lite/micro/micro_interpreter.h"
+// #include "tensorflow/lite/micro/micro_log.h"
+// #include "tensorflow/lite/micro/system_setup.h"
+// #include "tensorflow/lite/schema/schema_generated.h"
+
+// #include "model.h"
+
 float old_temp = 0;
 float old_hum = 0;
 
@@ -51,6 +60,28 @@ float xg, yg, zg;
 
 // magnetometer data
 float xm, ym, zm;
+
+//tflite variables
+// tflite::AllOpsResolver tflOpsResolver;
+
+// const tflite::Model* tflModel = nullptr;
+// tflite::MicroInterpreter* tflInterpreter = nullptr;
+// TfLiteTensor* tflInputTensor = nullptr;
+// TfLiteTensor* tflOutputTensor = nullptr;
+
+// constexpr int tensorArenaSize = 8 * 1024;
+// byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
+
+// const char* ACTIVITIES[] = {
+//   "still",
+//   "walking",
+//   "running"
+// };
+
+// #define NUM_ACTIVITIES (sizeof(ACTIVITIES) / sizeof(ACTIVITIES[0]))
+
+// int numSamples = 20;
+// int samplesRead = 0;
 
 void setup()
 {
@@ -122,6 +153,38 @@ void setup()
   // {
   //   Serial.println("Error initializing APDS9960 sensor.");
   // }
+
+  // tflite model initialization
+  // tflite::InitializeTarget();
+  
+  // tflModel = tflite::GetModel(model);
+  
+  // if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
+  //   Serial.println("Model schema mismatch!");
+  //   while (1);
+  // }
+
+  // This pulls in all the operation implementations we need.
+  // NOLINTNEXTLINE(runtime-global-variables)
+  // static tflite::AllOpsResolver tflResolver;
+
+  // Create an interpreter to run the model
+  // tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
+  // static tflite::MicroInterpreter static_interpreter(tflModel, tflResolver, tensorArena, tensorArenaSize);
+      
+  // tflInterpreter = &static_interpreter;
+
+  // Allocate memory for the model's input and output tensors
+  // TfLiteStatus allocate_status = tflInterpreter->AllocateTensors();
+
+  // if (allocate_status != kTfLiteOk) {
+  //   Serial.println("AllocateTensors() failed");
+  //   while (1);
+  // }
+
+  // Get pointers for the model's input and output tensors
+  // tflInputTensor = tflInterpreter->input(0);
+  // tflOutputTensor = tflInterpreter->output(0);  
 }
 
 void loop()
@@ -182,7 +245,6 @@ void loop()
     // }
 
     // make every reading an integer to send over BLE
-
     int xa_int = xa * 1000;
     int ya_int = ya * 1000;
     int za_int = za * 1000;
@@ -194,6 +256,37 @@ void loop()
     int zm_int = zm * 1000;
     int temp_int = old_temp * 1000;
     int hum_int = old_hum * 1000;
+
+    // if(samplesRead < numSamples){
+    //   tflInputTensor->data.f[samplesRead * 6] = (xa + 4.0) / 8.0;
+    //   tflInputTensor->data.f[samplesRead * 6 + 1] = (ya + 4.0) / 8.0;
+    //   tflInputTensor->data.f[samplesRead * 6 + 2] = (za + 4.0) / 8.0;
+    //   tflInputTensor->data.f[samplesRead * 6 + 3] = (xg + 2000.0) / 4000.0;
+    //   tflInputTensor->data.f[samplesRead * 6 + 4] = (yg + 2000.0) / 4000.0;
+    //   tflInputTensor->data.f[samplesRead * 6 + 5] = (zg + 2000.0) / 4000.0;     
+
+    //   samplesRead++; 
+    // }
+
+    // if(samplesRead == numSamples){
+
+    //   TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+    //   if(invokeStatus != kTfLiteOk){
+    //     Serial.println("Invoke failed!");
+    //     while(1);
+    //     return;
+    //   }
+      
+    //   for (int i = 0; i < NUM_ACTIVITIES; i++) {
+    //       Serial.print(ACTIVITIES[i]);
+    //       Serial.print(": ");
+    //       Serial.println(tflOutputTensor->data.f[i], 6);
+    //     }
+    //     Serial.println();
+        
+    //}
+
+    
 
     // print data on serial
 
