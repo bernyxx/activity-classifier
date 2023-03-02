@@ -28,26 +28,26 @@ jobs:
       - name: Setup flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.3.10'
+          flutter-version: '3.7.5'
           channel: 'stable'
           cache: true
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Start release build
+      - name: Build apk
         run: flutter build apk
 
       - name: Rename apk
         run: mv build/app/outputs/apk/release/app-release.apk build/app/outputs/apk/release/activity-classifier-0.0.${{ github.run_number }}.apk
 
-      - name: Upload artifact
+      - name: Upload apk
         uses: actions/upload-artifact@v1
         with:
           name: release-apk
           path: activity_classifier/build/app/outputs/apk/release/activity-classifier-0.0.${{ github.run_number }}.apk
 
-      - name: Release
+      - name: Create a new github release
         uses: softprops/action-gh-release@v1
         with:
           files: activity_classifier/build/app/outputs/apk/release/activity-classifier-0.0.${{ github.run_number }}.apk

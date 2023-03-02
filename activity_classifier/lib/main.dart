@@ -1,8 +1,16 @@
-import 'package:flutter/material.dart';
+import 'package:activity_classifier/providers/BLEProvider.dart';
+import 'package:activity_classifier/screens/classificationScreen.dart';
 import 'package:activity_classifier/screens/takeAndSaveDataScreen.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => BLEProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -45,9 +53,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (index == 0) {
       return const TakeAndSaveDataScreen();
     } else {
-      return Center(
-        child: Text('Index $_bottomNavigationBarIndex'),
-      );
+      return const ClassificationScreen();
     }
   }
 
