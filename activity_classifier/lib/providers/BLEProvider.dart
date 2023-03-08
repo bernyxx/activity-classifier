@@ -50,6 +50,9 @@ class BLEProvider extends ChangeNotifier {
 
   // scan BLE devices
   void scan(BuildContext ctx) async {
+    // clear the old data
+    measures.clear();
+
     List<DiscoveredDevice> foundDevices = [];
     var navigator = Navigator.of(ctx);
     var messenger = ScaffoldMessenger.of(ctx);
@@ -160,7 +163,10 @@ class BLEProvider extends ChangeNotifier {
     // disconnect the board
     await connection!.cancel();
 
+    // make connection null to update UI elements
     connection = null;
+
+    notifyListeners();
   }
 
   // connect to the selected board and get the data
@@ -234,6 +240,21 @@ class BLEProvider extends ChangeNotifier {
         measures[i].add(value);
         notifyListeners();
       }));
+    }
+  }
+
+  String getDeviceConnectionStateString(DeviceConnectionState connectionState) {
+    switch (connectionState) {
+      case DeviceConnectionState.disconnected:
+        return 'Disconnected';
+      case DeviceConnectionState.connected:
+        return 'Connected';
+      case DeviceConnectionState.connecting:
+        return 'Connecting';
+      case DeviceConnectionState.disconnecting:
+        return 'Disconnecting';
+      default:
+        return '';
     }
   }
 }

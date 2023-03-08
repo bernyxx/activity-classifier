@@ -193,21 +193,6 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
     }
   }
 
-  String getDeviceConnectionStateString(DeviceConnectionState connectionState) {
-    switch (connectionState) {
-      case DeviceConnectionState.disconnected:
-        return 'Disconnected';
-      case DeviceConnectionState.connected:
-        return 'Connected';
-      case DeviceConnectionState.connecting:
-        return 'Connecting';
-      case DeviceConnectionState.disconnecting:
-        return 'Disconnecting';
-      default:
-        return '';
-    }
-  }
-
   void switchController(bool value) {
     setState(() {
       showData = value;
@@ -254,7 +239,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
                 const SizedBox(
                   height: 10,
                 ),
-                Text('Board status: ${BLEProvider.connection != null ? getDeviceConnectionStateString(BLEProvider.connectionState) : 'Disconnected'}'),
+                Text('Board status: ${BLEProvider.connection != null ? BLEProvider.getDeviceConnectionStateString(BLEProvider.connectionState) : 'Disconnected'}'),
                 const SizedBox(
                   height: 10,
                 ),
