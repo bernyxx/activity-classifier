@@ -2,15 +2,14 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:math';
 import 'package:activity_classifier/firebase_options.dart';
-import 'package:activity_classifier/providers/BLEProvider.dart';
-import 'package:activity_classifier/widgets/dataLengthWidget.dart';
-import 'package:activity_classifier/widgets/dataWidget.dart';
-import 'package:activity_classifier/widgets/radioCustom.dart';
+import 'package:activity_classifier/providers/ble_provider.dart';
+import 'package:activity_classifier/widgets/data_length_widget.dart';
+import 'package:activity_classifier/widgets/data_widget.dart';
+import 'package:activity_classifier/widgets/radio_custom.dart';
 import 'package:date_format/date_format.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -44,8 +43,8 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
 
   Future<File> getFile() async {
     Directory? dir = await getExternalStorageDirectory();
-    print(dir!.path);
-    return File('${dir.path}/data.csv');
+    // print(dir!.path);
+    return File('${dir!.path}/data.csv');
   }
 
   // take the measurements (list of measures) and create a csv file
@@ -60,6 +59,8 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
 
     // measures = measures.sublist(0, 3);
 
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return;
     List<List<int>> measures = Provider.of<BLEProvider>(context, listen: false).measures;
 
     int minLength = measures.map((e) => e.length).toList().reduce(min);
@@ -168,7 +169,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
     );
 
     if (!save) {
-      print('trash the data');
+      // print('trash the data');
       return;
     }
 
@@ -182,6 +183,8 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
       // upload local csv file to Firebase Storage
       await fileRef.putFile(file);
 
+      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Dataset upload successfully!'),
@@ -189,6 +192,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
         ),
       );
     } on FirebaseException catch (e) {
+      // ignore: avoid_print
       print(e);
     }
   }
@@ -202,7 +206,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
   @override
   Widget build(BuildContext context) {
     return Consumer<BLEProvider>(
-      builder: (context, BLEProvider, child) {
+      builder: (context, bleProvider, child) {
         return Center(
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: 30, horizontal: 15),
@@ -227,11 +231,11 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton(
-                      onPressed: (BLEProvider.connection == null && BLEProvider.isScanning == false) ? () => BLEProvider.scan(context) : null,
+                      onPressed: (bleProvider.connection == null && bleProvider.isScanning == false) ? () => bleProvider.scan(context) : null,
                       child: const Text('Scan'),
                     ),
                     ElevatedButton(
-                      onPressed: (BLEProvider.connection == null) ? null : stopTakeData,
+                      onPressed: (bleProvider.connection == null) ? null : stopTakeData,
                       child: const Text('Stop'),
                     ),
                   ],
@@ -239,7 +243,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
                 const SizedBox(
                   height: 10,
                 ),
-                Text('Board status: ${BLEProvider.connection != null ? BLEProvider.getDeviceConnectionStateString(BLEProvider.connectionState) : 'Disconnected'}'),
+                Text('Board status: ${bleProvider.connection != null ? bleProvider.getDeviceConnectionStateString(bleProvider.connectionState) : 'Disconnected'}'),
                 const SizedBox(
                   height: 10,
                 ),
@@ -257,30 +261,30 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
                   child: ListView(
                     children: showData
                         ? [
-                            DataWidget('accX', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[0] : []),
-                            DataWidget('accY', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[1] : []),
-                            DataWidget('accZ', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[2] : []),
-                            DataWidget('gyroX', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[3] : []),
-                            DataWidget('gyroY', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[4] : []),
-                            DataWidget('gyroZ', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[5] : []),
-                            DataWidget('magX', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[6] : []),
-                            DataWidget('magY', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[7] : []),
-                            DataWidget('magZ', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[8] : []),
-                            DataWidget('temp', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[9] : []),
-                            DataWidget('hum', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[10] : []),
+                            DataWidget('accX', bleProvider.measures.isNotEmpty ? bleProvider.measures[0] : []),
+                            DataWidget('accY', bleProvider.measures.isNotEmpty ? bleProvider.measures[1] : []),
+                            DataWidget('accZ', bleProvider.measures.isNotEmpty ? bleProvider.measures[2] : []),
+                            DataWidget('gyroX', bleProvider.measures.isNotEmpty ? bleProvider.measures[3] : []),
+                            DataWidget('gyroY', bleProvider.measures.isNotEmpty ? bleProvider.measures[4] : []),
+                            DataWidget('gyroZ', bleProvider.measures.isNotEmpty ? bleProvider.measures[5] : []),
+                            DataWidget('magX', bleProvider.measures.isNotEmpty ? bleProvider.measures[6] : []),
+                            DataWidget('magY', bleProvider.measures.isNotEmpty ? bleProvider.measures[7] : []),
+                            DataWidget('magZ', bleProvider.measures.isNotEmpty ? bleProvider.measures[8] : []),
+                            DataWidget('temp', bleProvider.measures.isNotEmpty ? bleProvider.measures[9] : []),
+                            DataWidget('hum', bleProvider.measures.isNotEmpty ? bleProvider.measures[10] : []),
                           ]
                         : [
-                            DataLengthWidget('accX', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[0] : []),
-                            DataLengthWidget('accY', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[1] : []),
-                            DataLengthWidget('accZ', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[2] : []),
-                            DataLengthWidget('gyroX', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[3] : []),
-                            DataLengthWidget('gyroY', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[4] : []),
-                            DataLengthWidget('gyroZ', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[5] : []),
-                            DataLengthWidget('magX', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[6] : []),
-                            DataLengthWidget('magY', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[7] : []),
-                            DataLengthWidget('magZ', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[8] : []),
-                            DataLengthWidget('temp', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[9] : []),
-                            DataLengthWidget('hum', BLEProvider.measures.isNotEmpty ? BLEProvider.measures[10] : []),
+                            DataLengthWidget('accX', bleProvider.measures.isNotEmpty ? bleProvider.measures[0] : []),
+                            DataLengthWidget('accY', bleProvider.measures.isNotEmpty ? bleProvider.measures[1] : []),
+                            DataLengthWidget('accZ', bleProvider.measures.isNotEmpty ? bleProvider.measures[2] : []),
+                            DataLengthWidget('gyroX', bleProvider.measures.isNotEmpty ? bleProvider.measures[3] : []),
+                            DataLengthWidget('gyroY', bleProvider.measures.isNotEmpty ? bleProvider.measures[4] : []),
+                            DataLengthWidget('gyroZ', bleProvider.measures.isNotEmpty ? bleProvider.measures[5] : []),
+                            DataLengthWidget('magX', bleProvider.measures.isNotEmpty ? bleProvider.measures[6] : []),
+                            DataLengthWidget('magY', bleProvider.measures.isNotEmpty ? bleProvider.measures[7] : []),
+                            DataLengthWidget('magZ', bleProvider.measures.isNotEmpty ? bleProvider.measures[8] : []),
+                            DataLengthWidget('temp', bleProvider.measures.isNotEmpty ? bleProvider.measures[9] : []),
+                            DataLengthWidget('hum', bleProvider.measures.isNotEmpty ? bleProvider.measures[10] : []),
                           ],
                   ),
                 ),

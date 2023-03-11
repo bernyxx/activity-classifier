@@ -79,9 +79,10 @@ class BLEProvider extends ChangeNotifier {
                   // if not already discovered, add it to the list of discovered devices
                   setState(() {
                     foundDevices.add(device);
-                    print('added ${device.name}');
+                    // print('added ${device.name}');
                   });
                 }
+                // ignore: avoid_print
               }, onError: (err) => print(err));
               return AlertDialog(
                 content: Column(
@@ -145,7 +146,7 @@ class BLEProvider extends ChangeNotifier {
 
   // function called when a discovered device is selected from the list during scanning
   void selectDevice(BuildContext ctx, DiscoveredDevice device) async {
-    print("selected device!");
+    // print("selected device!");
     Navigator.of(ctx).pop();
     scanStream!.cancel();
     await connectAndGetData(device);
@@ -153,7 +154,7 @@ class BLEProvider extends ChangeNotifier {
 
   // disconnect the board
   Future<void> stop() async {
-    print("disconnecting board");
+    // print("disconnecting board");
 
     // stop receiving data for all characteristics
     for (StreamSubscription stream in streams) {
@@ -181,7 +182,7 @@ class BLEProvider extends ChangeNotifier {
     connection = currentConnectionStream.listen(
       (event) {
         // print the changes
-        print(event);
+        // print(event);
         connectionState = event.connectionState;
         notifyListeners();
       },

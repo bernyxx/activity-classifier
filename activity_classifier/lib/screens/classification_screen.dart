@@ -1,4 +1,5 @@
-import 'package:activity_classifier/providers/BLEProvider.dart';
+import 'dart:async';
+import 'package:activity_classifier/providers/ble_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart' as tfl;
@@ -13,6 +14,27 @@ class ClassificationScreen extends StatefulWidget {
 
 class _ClassificationScreenState extends State<ClassificationScreen> {
   String activity = '';
+
+  bool isModelRunning = false;
+  int previousMeasuresLength = 0;
+
+  Timer? timer;
+
+  void startScanAndModel(BuildContext ctx) {
+    previousMeasuresLength = 0;
+    Provider.of<BLEProvider>(ctx, listen: false).scan(ctx);
+    timer = Timer.periodic(const Duration(seconds: 3), (_) {
+      runModel(ctx, Provider.of<BLEProvider>(context, listen: false).measures);
+    });
+  }
+
+  void stopScanAndModel(BuildContext ctx) {
+    timer?.cancel();
+    Provider.of<BLEProvider>(ctx, listen: false).stop();
+    setState(() {
+      activity = '';
+    });
+  }
 
   void showErrorSnackbar(BuildContext ctx, String errorMsg) {
     ScaffoldMessenger.of(ctx).showSnackBar(
@@ -36,24 +58,21 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     }
   }
 
-  Future<void> runModel(BuildContext ctx, List<List<int>> data, int evaluations) async {
+  Future<void> runModel(BuildContext ctx, List<List<int>> data) async {
     int inputFeatureSize = 20;
 
-    List<int> result = [];
-
+    // no data collected
     if (data.isEmpty) {
-      print('No data');
-      showErrorSnackbar(ctx, 'No data collected');
+      // print('No data');
       return;
     }
 
     // check if every feature has at least the number of samples required to run the model
-
     int minFeatureSize = data.map((feature) => feature.length).toList().reduce(min);
 
+    // not enough data collected to run the model
     if (minFeatureSize < 20) {
-      print('Not enough data');
-      showErrorSnackbar(ctx, 'Not enough data to run the classifier!');
+      // print('Not enough data');
       return;
     }
 
@@ -89,18 +108,22 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
       [0.0, 0.0, 0.0]
     ];
 
+    // run the model
     interpreter.run([input], output);
 
     // print classification probability
-    print(output);
+    // print(output);
 
+    // the category with the highest probability
     int indexResult = output[0].indexOf(output[0].reduce(max));
 
     // print the class with the highest probability
-    print(indexResult);
+    // print(indexResult);
 
+    // result activity as string
     String activityRes = '';
 
+    //
     switch (indexResult) {
       case 0:
         activityRes = 'Running';
@@ -115,6 +138,12 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     setState(() {
       activity = activityRes;
     });
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -145,11 +174,11 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton(
-                      onPressed: (bleProvider.connection == null && bleProvider.isScanning == false) ? () => bleProvider.scan(context) : null,
+                      onPressed: (bleProvider.connection == null && bleProvider.isScanning == false) ? () => startScanAndModel(context) : null,
                       child: const Text('Scan'),
                     ),
                     ElevatedButton(
-                      onPressed: (bleProvider.connection == null) ? null : bleProvider.stop,
+                      onPressed: (bleProvider.connection == null) ? null : () => stopScanAndModel(context),
                       child: const Text('Stop'),
                     ),
                   ],
@@ -157,14 +186,14 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
                 const SizedBox(
                   height: 10,
                 ),
-                Text('Board status: ${bleProvider.connection != null ? bleProvider.getDeviceConnectionStateString(bleProvider.connectionState) : 'Disconnected'}'),
+                Text('Board Status: ${bleProvider.connection != null ? bleProvider.getDeviceConnectionStateString(bleProvider.connectionState) : 'Disconnected'}'),
                 const SizedBox(
                   height: 20,
                 ),
-                ElevatedButton(
-                  onPressed: () => runModel(context, bleProvider.measures, 1),
-                  child: const Text('Classify'),
-                ),
+                // ElevatedButton(
+                //   onPressed: () => runModel(context, bleProvider.measures, 1),
+                //   child: const Text('Classify'),
+                // ),
                 const SizedBox(
                   height: 10,
                 ),
@@ -182,7 +211,7 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
                         ),
                         Text(
                           activity != '' ? activity : 'No Data Collected',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
                         ),
                       ],
                     ),

@@ -1,6 +1,6 @@
-import 'package:activity_classifier/providers/BLEProvider.dart';
-import 'package:activity_classifier/screens/classificationScreen.dart';
-import 'package:activity_classifier/screens/takeAndSaveDataScreen.dart';
+import 'package:activity_classifier/providers/ble_provider.dart';
+import 'package:activity_classifier/screens/take_and_save_data_screen.dart';
+import 'package:activity_classifier/screens/classification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';

@@ -3,9 +3,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:activity_classifier/firebase_options.dart';
-import 'package:activity_classifier/widgets/dataLengthWidget.dart';
-import 'package:activity_classifier/widgets/dataWidget.dart';
-import 'package:activity_classifier/widgets/radioCustom.dart';
+import 'package:activity_classifier/widgets/data_length_widget.dart';
+import 'package:activity_classifier/widgets/data_widget.dart';
+import 'package:activity_classifier/widgets/radio_custom.dart';
 import 'package:date_format/date_format.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -78,7 +78,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
 
   // function called when a discovered device is selected from the list during scanning
   void selectDevice(DiscoveredDevice device) async {
-    print("selected device!");
+    // print("selected device!");
     Navigator.of(context).pop();
     scanStream!.cancel();
     await connectAndGetData(device);
@@ -113,9 +113,10 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
                   // if not already discovered, add it to the list of discovered devices
                   setState(() {
                     foundDevices.add(device);
-                    print('added ${device.name}');
+                    // print('added ${device.name}');
                   });
                 }
+                // ignore: avoid_print
               }, onError: (err) => print(err));
               return AlertDialog(
                 content: Column(
@@ -177,7 +178,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
 
   // disconnect the board
   Future<void> stop() async {
-    print("disconnecting board");
+    // print("disconnecting board");
 
     // stop receiving data for all characteristics
     for (StreamSubscription stream in streams) {
@@ -211,7 +212,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     connection = currentConnectionStream.listen(
       (event) {
         // print the changes
-        print(event);
+        // print(event);
         setState(() {
           connectionState = event.connectionState;
         });
@@ -274,8 +275,8 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
 
   Future<File> getFile() async {
     Directory? dir = await getExternalStorageDirectory();
-    print(dir!.path);
-    return File('${dir.path}/data.csv');
+    // print(dir!.path);
+    return File('${dir!.path}/data.csv');
   }
 
   // take the measurements (list of measures) and create a csv file
@@ -396,7 +397,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     );
 
     if (!save) {
-      print('trash the data');
+      // print('trash the data');
       return;
     }
 
@@ -409,7 +410,8 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
     try {
       // upload local csv file to Firebase Storage
       await fileRef.putFile(file);
-
+      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Dataset upload successfully!'),
@@ -417,6 +419,7 @@ class _TakeAndSaveDataScreenState extends State<TakeAndSaveDataScreen> {
         ),
       );
     } on FirebaseException catch (e) {
+      // ignore: avoid_print
       print(e);
     }
   }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class DataWidget extends StatelessWidget {
-  DataWidget(this.title, this.data, {super.key});
+  const DataWidget(this.title, this.data, {super.key});
 
-  String title;
-  List<int> data;
+  final String title;
+  final List<int> data;
 
   @override
   Widget build(BuildContext context) {
