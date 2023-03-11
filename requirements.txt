@@ -1,2 +1,0 @@
-pyserial
-alive_progress
