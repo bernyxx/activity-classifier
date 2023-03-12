@@ -13,13 +13,16 @@ class ClassificationScreen extends StatefulWidget {
 }
 
 class _ClassificationScreenState extends State<ClassificationScreen> {
+  // result of the neural network model
   String activity = '';
 
-  bool isModelRunning = false;
+  // number of samples collected when the classifier ran before
   int previousMeasuresLength = 0;
 
+  // timer to execute the model every 3 seconds on the latest data collected
   Timer? timer;
 
+  // start scan for boards and activate the timer to execute the NN model
   void startScanAndModel(BuildContext ctx) {
     previousMeasuresLength = 0;
     Provider.of<BLEProvider>(ctx, listen: false).scan(ctx);
@@ -28,6 +31,7 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     });
   }
 
+  // disconnect the board and stop the timer that executes the model periodically
   void stopScanAndModel(BuildContext ctx) {
     timer?.cancel();
     Provider.of<BLEProvider>(ctx, listen: false).stop();
@@ -36,6 +40,7 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     });
   }
 
+  // show a red snackbar at the bottom of the screen
   void showErrorSnackbar(BuildContext ctx, String errorMsg) {
     ScaffoldMessenger.of(ctx).showSnackBar(
       SnackBar(
@@ -45,6 +50,7 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     );
   }
 
+  // return the icon associated with the activity recognised
   IconData getActivityIcon() {
     switch (activity) {
       case 'Still':
@@ -58,10 +64,11 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     }
   }
 
+  // run the model on the latest data collected
   Future<void> runModel(BuildContext ctx, List<List<int>> data) async {
     int inputFeatureSize = 20;
 
-    // no data collected
+    // if no data collected return
     if (data.isEmpty) {
       // print('No data');
       return;
@@ -70,29 +77,34 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     // check if every feature has at least the number of samples required to run the model
     int minFeatureSize = data.map((feature) => feature.length).toList().reduce(min);
 
-    // not enough data collected to run the model
+    // not enough data collected to run the model, return
     if (minFeatureSize < 20) {
       // print('Not enough data');
       return;
     }
 
+    // initialize an interpreter using the tflite model in the assets
     final interpreter = await tfl.Interpreter.fromAsset('activity_classifier.tflite');
 
+    // initialize input list
     List<List<double>> input = [];
+
+    // measures list is grouped by features but we need 20 rows and 6 columns
+    // each row must contain the 6 features (xa, ya, za, xg, yg, zg)
 
     for (int featureIndex = 0; featureIndex < 6; featureIndex++) {
       int featureLength = data[featureIndex].length;
 
-      // retain the last 20 samples
+      // pick the last 20 samples
       List<int> dataFeature = data[featureIndex].sublist(featureLength - inputFeatureSize);
 
+      // scale every sample in dataFeature list
       for (int i = 0; i < dataFeature.length; i++) {
         if (featureIndex == 0) {
           input.add([]);
         }
 
-        // arduino scaler, creo uno scaler in base ai massimi valori registrabili da accelerometro
-        // e giroscopio
+        // arduino scaler, scale the data between 0 and 1
         double res = 0.0;
         if (featureIndex < 3) {
           res = (dataFeature[i] + 4000.0) / 8000.0;
@@ -104,6 +116,7 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
       }
     }
 
+    // initialize output
     var output = [
       [0.0, 0.0, 0.0]
     ];
@@ -123,7 +136,7 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
     // result activity as string
     String activityRes = '';
 
-    //
+    // return the activity recognised as string
     switch (indexResult) {
       case 0:
         activityRes = 'Running';
@@ -135,11 +148,13 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
         activityRes = 'Walking';
     }
 
+    // update the UI
     setState(() {
       activity = activityRes;
     });
   }
 
+  // stop the timer executing the model periodically if it is still running while disposing the screen
   @override
   void dispose() {
     timer?.cancel();
@@ -190,10 +205,6 @@ class _ClassificationScreenState extends State<ClassificationScreen> {
                 const SizedBox(
                   height: 20,
                 ),
-                // ElevatedButton(
-                //   onPressed: () => runModel(context, bleProvider.measures, 1),
-                //   child: const Text('Classify'),
-                // ),
                 const SizedBox(
                   height: 10,
                 ),

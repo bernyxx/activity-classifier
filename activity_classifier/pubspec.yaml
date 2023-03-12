@@ -1,5 +1,5 @@
 name: activity_classifier
-description: A multiplatform app to classify sport activities
+description: A mobile app to classify sport activities using arduino nano 33 ble sense board
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
@@ -21,12 +21,33 @@ dependencies:
   date_format: ^2.0.7
   tflite_flutter: ^0.9.0
   provider: ^6.0.5
+  flutter_native_splash: ^2.2.19
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.12.0
 
   flutter_lints: ^2.0.0
+
+flutter_icons:
+  android: 'launcher_icon'
+  ios: false
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
+  image_path: 'assets/icon/icon.png'
+
+flutter_native_splash:
+  # color: '#367188'
+  background_image: 'assets/background.png'
+  # image: 'assets/icon/icon.png'
+  ios: false
+  web: false
+  android_12:
 
 flutter:
   uses-material-design: true
@@ -34,29 +55,16 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/activity_classifier.tflite
+    - assets/background.png
 
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/assets-and-images/#resolution-aware
-
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/assets-and-images/#from-packages
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/custom-fonts/#from-packages
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Roboto-BoldItalic.ttf
+          weight: 700
+          style: italic

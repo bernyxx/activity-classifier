@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+// widget to display the data collected of a single feature
 class DataWidget extends StatelessWidget {
   const DataWidget(this.title, this.data, {super.key});
 
+  // name of the feature
   final String title;
+
+  // list of the data collected
   final List<int> data;
 
   @override

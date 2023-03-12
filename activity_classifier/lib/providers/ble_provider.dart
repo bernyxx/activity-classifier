@@ -4,28 +4,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:location_permissions/location_permissions.dart';
 
+// class that handles everything BLE related
+// scans for boards, connection/ disconnection of the board, collect the data, subscribe to the BLE characteristics...
 class BLEProvider extends ChangeNotifier {
+  // initialize FlutterBLE library
   final flutterReactiveBle = FlutterReactiveBle();
 
+  // stream of discovered devices
   late StreamSubscription<DiscoveredDevice>? scanStream;
 
+  // stream of connection states
   StreamSubscription<ConnectionStateUpdate>? connection;
 
+  // device connection state (e.g. connected, disconnected, connecting)
   DeviceConnectionState connectionState = DeviceConnectionState.disconnected;
 
+  // list of the streams connected to the BLE characteristics
   List<StreamSubscription<dynamic>> streams = [];
 
+  // is the app scanning for boards at the moment?
   bool isScanning = false;
 
   // list of measures
+  // samples are collected divided in features -> [[all the x-accelerometer samples], [all the y-accelerometer samples], ..., [all the humidity % samples]]
   List<List<int>> measures = [];
 
   // 2 BLE services
+  // service for temperature and humidity sensor
   final Uuid environmentalSensingService = Uuid.parse("181A");
-  final Uuid accelerometerService = Uuid.parse("1101");
 
-  // list of BLE characteristics
+  // service for IMU data (acccelerometer, gyroscope, magnetometer)
+  final Uuid imuService = Uuid.parse("1101");
 
+  // BLE characteristics
+  // 9 characteristics for the IMU Sservice
   final Uuid accXCharacteristic = Uuid.parse("2101");
   final Uuid accYCharacteristic = Uuid.parse("2102");
   final Uuid accZCharacteristic = Uuid.parse("2103");
@@ -38,6 +50,7 @@ class BLEProvider extends ChangeNotifier {
   final Uuid magYCharacteristic = Uuid.parse("2302");
   final Uuid magZCharacteristic = Uuid.parse("2303");
 
+  // 2 characteristics for the enviromental sensing service
   final Uuid temperatureCharacteristic = Uuid.parse("2A6E");
   final Uuid humidityCharacteristic = Uuid.parse("2A6F");
 
@@ -72,7 +85,7 @@ class BLEProvider extends ChangeNotifier {
           return StatefulBuilder(
             builder: (context, setState) {
               scanStream = flutterReactiveBle.scanForDevices(
-                withServices: [accelerometerService, environmentalSensingService],
+                withServices: [imuService, environmentalSensingService],
               ).listen((device) async {
                 // check if the device was already discovered
                 if (foundDevices.indexWhere((element) => element.id == device.id) == -1) {
@@ -84,6 +97,8 @@ class BLEProvider extends ChangeNotifier {
                 }
                 // ignore: avoid_print
               }, onError: (err) => print(err));
+              // display alert dialog with a list of discovered devices
+              // the user can tap on the device he wants to connect to
               return AlertDialog(
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -122,7 +137,7 @@ class BLEProvider extends ChangeNotifier {
                       scanStream!.cancel();
                       isScanning = false;
                       setState(() {
-                        // isScanning = false;
+                        isScanning = false;
                         connection = null;
                       });
                       notifyListeners();
@@ -172,7 +187,7 @@ class BLEProvider extends ChangeNotifier {
 
   // connect to the selected board and get the data
   Future<void> connectAndGetData(DiscoveredDevice device) async {
-    // connect to the device Nano Suino
+    // connect to the board
     Stream<ConnectionStateUpdate> currentConnectionStream = flutterReactiveBle.connectToDevice(
       id: device.id,
       connectionTimeout: const Duration(seconds: 5),
@@ -183,38 +198,32 @@ class BLEProvider extends ChangeNotifier {
       (event) {
         // print the changes
         // print(event);
+        // update connection state with the latest state in the stream
         connectionState = event.connectionState;
         notifyListeners();
       },
     );
 
-    // better to make isScanning false here because between there is an interval between the time when the device is found and the time
-    // when the app is connected to the nano
-
-    // setState(() {
-    //   isScanning = false;
-    // });
-
     isScanning = false;
     notifyListeners();
 
-    // list of characteristics
+    // initialization of the 11 qualified characteristics (9 for the IMU + temperature and humidity)
+    final qAccXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: accXCharacteristic);
+    final qAccYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: accYCharacteristic);
+    final qAccZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: accZCharacteristic);
 
-    final qAccXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: accXCharacteristic);
-    final qAccYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: accYCharacteristic);
-    final qAccZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: accZCharacteristic);
+    final qGyroXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: gyroXCharacteristic);
+    final qGyroYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: gyroYCharacteristic);
+    final qGyroZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: gyroZCharacteristic);
 
-    final qGyroXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: gyroXCharacteristic);
-    final qGyroYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: gyroYCharacteristic);
-    final qGyroZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: gyroZCharacteristic);
-
-    final qMagXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: magXCharacteristic);
-    final qMagYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: magYCharacteristic);
-    final qMagZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: accelerometerService, characteristicId: magZCharacteristic);
+    final qMagXCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: magXCharacteristic);
+    final qMagYCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: magYCharacteristic);
+    final qMagZCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: imuService, characteristicId: magZCharacteristic);
 
     final qTemperatureCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: environmentalSensingService, characteristicId: temperatureCharacteristic);
     final qHumidityCharacteristic = QualifiedCharacteristic(deviceId: device.id, serviceId: environmentalSensingService, characteristicId: humidityCharacteristic);
 
+    // put the qualified characteristics in a list
     List<QualifiedCharacteristic> characteristics = [
       qAccXCharacteristic,
       qAccYCharacteristic,
@@ -244,6 +253,7 @@ class BLEProvider extends ChangeNotifier {
     }
   }
 
+  // toString of device connection state
   String getDeviceConnectionStateString(DeviceConnectionState connectionState) {
     switch (connectionState) {
       case DeviceConnectionState.disconnected:
