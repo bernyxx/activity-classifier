@@ -21,16 +21,20 @@ class TakeAndSaveDataScreen extends StatefulWidget {
 }
 
 class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
+  // check if firebase library is initilized
   bool isFirebaseInitialized = false;
 
+  // switch on -> the values of the samples are showed
+  // switch off -> only how many samples per characteristics are shown
   bool showData = false;
 
-  // dataset type
+  // dataset type selection
   String datasetType = 'still';
 
+  // labels of the characteristics
   List<String> labels = ['accX', 'accY', 'accZ', 'gyroX', 'gyroY', 'gyroZ', 'magX', 'magY', 'magZ', 'temp', 'hum'];
 
-  // disconnect the board
+  // disconnect the streams connected on the ble characteristics, disconnect the board, write the measures on a csv file and upload it on a firebase storage bucket
   Future<void> stopTakeData() async {
     await Provider.of<BLEProvider>(context, listen: false).stop();
 
@@ -41,6 +45,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
     await uploadFile();
   }
 
+  // get the csv file saved
   Future<File> getFile() async {
     Directory? dir = await getExternalStorageDirectory();
     // print(dir!.path);
@@ -90,6 +95,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
     });
   }
 
+  // update the datasetType variable and update the UI
   void handleDatasetTypeSelector(String type, var setState) {
     setState(() {
       datasetType = type;
@@ -197,6 +203,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
     }
   }
 
+  // function to handle the switch (values or number of measures)
   void switchController(bool value) {
     setState(() {
       showData = value;
@@ -243,7 +250,7 @@ class _TakeAndSaveDataScreenStateNew extends State<TakeAndSaveDataScreen> {
                 const SizedBox(
                   height: 10,
                 ),
-                Text('Board status: ${bleProvider.connection != null ? bleProvider.getDeviceConnectionStateString(bleProvider.connectionState) : 'Disconnected'}'),
+                Text('Board Status: ${bleProvider.connection != null ? bleProvider.getDeviceConnectionStateString(bleProvider.connectionState) : 'Disconnected'}'),
                 const SizedBox(
                   height: 10,
                 ),

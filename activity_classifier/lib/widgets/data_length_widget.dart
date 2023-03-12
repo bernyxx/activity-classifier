@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
+// display how many samples are collected without displaying the actual data
+// similar to DataWidget but shows only how  many samples are collected
 class DataLengthWidget extends StatelessWidget {
   const DataLengthWidget(this.title, this.data, {super.key});
 
+  // name of the feature
   final String title;
+
+  // list of the data collected
   final List<int> data;
 
   @override
