@@ -3,7 +3,6 @@
 #include <Arduino_APDS9960.h>
 #include <ArduinoBLE.h>
 
-
 // #include "tensorflow/lite/micro/all_ops_resolver.h"
 // #include "tensorflow/lite/micro/micro_interpreter.h"
 // #include "tensorflow/lite/micro/micro_log.h"
@@ -17,23 +16,27 @@ float old_hum = 0;
 
 // list of Characteristics UUIDs
 #define BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE "181A"
+#define BLE_UUID_IMU_SERVICE "1101"
+
 #define BLE_UUID_TEMPERATURE "2A6E"
 #define BLE_UUID_HUMIDITY "2A6F"
 #define BLE_UUID_PRESSURE "2A6D"
-#define BLE_UUID_ACCELEROMETER_SERVICE "1101"
+
 #define BLE_UUID_ACCELEROMETER_X "2101"
 #define BLE_UUID_ACCELEROMETER_Y "2102"
 #define BLE_UUID_ACCELEROMETER_Z "2103"
+
 #define BLE_UUID_GYROSCOPE_X "2201"
 #define BLE_UUID_GYROSCOPE_Y "2202"
 #define BLE_UUID_GYROSCOPE_Z "2203"
+
 #define BLE_UUID_MAGNETOMETER_X "2301"
 #define BLE_UUID_MAGNETOMETER_Y "2302"
 #define BLE_UUID_MAGNETOMETER_Z "2303"
 
 // definition of the 2 services provided over BLE
 BLEService sensingService(BLE_UUID_ENVIRONMENTAL_SENSING_SERVICE); // BLE LED Service
-BLEService imuService(BLE_UUID_ACCELEROMETER_SERVICE);
+BLEService imuService(BLE_UUID_IMU_SERVICE);
 
 // create the 11 characteristics (9 for the IMU + temperature and humidity readings)
 // initialize each characteristic with the corrensponding UUID and make it only read and subscribable
@@ -61,8 +64,8 @@ float xg, yg, zg;
 // magnetometer data
 float xm, ym, zm;
 
-//tflite variables
-// tflite::AllOpsResolver tflOpsResolver;
+// tflite variables
+//  tflite::AllOpsResolver tflOpsResolver;
 
 // const tflite::Model* tflModel = nullptr;
 // tflite::MicroInterpreter* tflInterpreter = nullptr;
@@ -97,7 +100,7 @@ void setup()
       ;
   }
 
-  BLE.setLocalName("Nano Suino");
+  BLE.setLocalName("Nano Board");
 
   BLE.setAdvertisedService(imuService);
   BLE.setAdvertisedService(sensingService);
@@ -156,9 +159,9 @@ void setup()
 
   // tflite model initialization
   // tflite::InitializeTarget();
-  
+
   // tflModel = tflite::GetModel(model);
-  
+
   // if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
   //   Serial.println("Model schema mismatch!");
   //   while (1);
@@ -171,7 +174,7 @@ void setup()
   // Create an interpreter to run the model
   // tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
   // static tflite::MicroInterpreter static_interpreter(tflModel, tflResolver, tensorArena, tensorArenaSize);
-      
+
   // tflInterpreter = &static_interpreter;
 
   // Allocate memory for the model's input and output tensors
@@ -184,7 +187,7 @@ void setup()
 
   // Get pointers for the model's input and output tensors
   // tflInputTensor = tflInterpreter->input(0);
-  // tflOutputTensor = tflInterpreter->output(0);  
+  // tflOutputTensor = tflInterpreter->output(0);
 }
 
 void loop()
@@ -263,9 +266,9 @@ void loop()
     //   tflInputTensor->data.f[samplesRead * 6 + 2] = (za + 4.0) / 8.0;
     //   tflInputTensor->data.f[samplesRead * 6 + 3] = (xg + 2000.0) / 4000.0;
     //   tflInputTensor->data.f[samplesRead * 6 + 4] = (yg + 2000.0) / 4000.0;
-    //   tflInputTensor->data.f[samplesRead * 6 + 5] = (zg + 2000.0) / 4000.0;     
+    //   tflInputTensor->data.f[samplesRead * 6 + 5] = (zg + 2000.0) / 4000.0;
 
-    //   samplesRead++; 
+    //   samplesRead++;
     // }
 
     // if(samplesRead == numSamples){
@@ -276,17 +279,15 @@ void loop()
     //     while(1);
     //     return;
     //   }
-      
+
     //   for (int i = 0; i < NUM_ACTIVITIES; i++) {
     //       Serial.print(ACTIVITIES[i]);
     //       Serial.print(": ");
     //       Serial.println(tflOutputTensor->data.f[i], 6);
     //     }
     //     Serial.println();
-        
-    //}
 
-    
+    //}
 
     // print data on serial
 
